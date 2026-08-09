@@ -2,30 +2,29 @@ import json
 import re
 import time
 from datetime import datetime, timezone
-from urllib.parse import urljoin, urlparse
 from pathlib import Path
-
-from bs4 import BeautifulSoup
+from urllib.parse import quote, urlparse
 
 try:
     from curl_cffi import requests
 except Exception:
     requests = None
 
-SOURCES = [
-    ("https://www.sarkariresult.com/latestjob/", "Latest Jobs"),
-    ("https://www.sarkariresult.com/result/", "Result"),
-    ("https://www.sarkariresult.com/admitcard/", "Admit Card"),
-    ("https://www.sarkariresult.com/answerkey/", "Answer Key"),
-    ("https://www.sarkariresult.com/syllabus/", "Syllabus"),
-    ("https://www.sarkariresult.com/admission/", "Admission"),
+# V4.1: discovery no longer requests SarkariResult category pages directly.
+# It asks Jina Search for indexed SarkariResult article URLs, then writes feed.json.
+SEARCHES = [
+    ("Latest Jobs", "site:sarkariresult.com Sarkari Result latest job online form vacancy 2026"),
+    ("Result", "site:sarkariresult.com Sarkari Result result declared merit list score card 2026"),
+    ("Admit Card", "site:sarkariresult.com Sarkari Result admit card exam date hall ticket 2026"),
+    ("Answer Key", "site:sarkariresult.com Sarkari Result answer key objection 2026"),
+    ("Syllabus", "site:sarkariresult.com Sarkari Result syllabus exam pattern 2026"),
+    ("Admission", "site:sarkariresult.com Sarkari Result admission online form counselling 2026"),
 ]
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36",
+    "Accept": "text/plain,text/markdown,text/html,application/xhtml+xml,*/*;q=0.8",
     "Accept-Language": "en-IN,en;q=0.9",
-    "Cache-Control": "no-cache",
 }
 
 BLOCKED_SEGMENTS = {
@@ -33,10 +32,14 @@ BLOCKED_SEGMENTS = {
     "contact", "privacy", "disclaimer", "about", "search", "feed", "category", "tag"
 }
 STATIC_EXT = re.compile(r"\.(?:jpg|jpeg|png|gif|webp|svg|css|js|xml|txt|pdf|zip|rar)$", re.I)
+URL_RE = re.compile(r"https?://(?:www\.)?sarkariresult\.com/[^\s<>()\]\[\"']+", re.I)
+MARKDOWN_RE = re.compile(r"\[([^\]]+)\]\((https?://(?:www\.)?sarkariresult\.com/[^)\s]+)\)", re.I)
 
 
 def canonical(url: str) -> str:
-    url = (url or "").strip().replace("http://", "https://", 1)
+    url = (url or "").strip()
+    url = re.sub(r"[)>.,;:'\"]+$", "", url)
+    url = url.replace("http://", "https://", 1)
     url = re.sub(r"^https://sarkariresult\.com", "https://www.sarkariresult.com", url, flags=re.I)
     url = re.sub(r"[?#].*$", "", url).rstrip("/")
     return url + "/" if url else ""
@@ -57,64 +60,121 @@ def is_article(url: str) -> bool:
     return True
 
 
-def fetch_html(url: str) -> str:
+def fetch_text(url: str) -> str:
     if requests is None:
         raise RuntimeError("curl_cffi is not installed")
     last = None
+    # Search endpoint is normally accessible without a key at the public rate limit.
     for impersonate in ("chrome", "chrome124", "safari17_0"):
         try:
-            r = requests.get(url, headers=HEADERS, impersonate=impersonate, timeout=30, allow_redirects=True)
-            if 200 <= r.status_code < 300 and len(r.text) > 500:
-                return r.text
-            last = RuntimeError(f"HTTP {r.status_code}, bytes={len(r.text)}")
+            r = requests.get(
+                url,
+                headers=HEADERS,
+                impersonate=impersonate,
+                timeout=45,
+                allow_redirects=True,
+            )
+            text = r.text or ""
+            if 200 <= r.status_code < 300 and len(text) > 100:
+                return text
+            last = RuntimeError(f"HTTP {r.status_code}, bytes={len(text)}")
         except Exception as e:
             last = e
         time.sleep(1)
-    raise last or RuntimeError("fetch failed")
+    raise last or RuntimeError("search fetch failed")
 
 
-def parse_category(html: str, base_url: str, label: str):
-    soup = BeautifulSoup(html, "lxml")
+def search_jina(query: str) -> str:
+    # Official Jina Search endpoint: https://s.jina.ai/<query>
+    return fetch_text("https://s.jina.ai/" + quote(query, safe=""))
+
+
+def clean_title(text: str) -> str:
+    text = re.sub(r"[*_`~#]+", " ", text or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:300]
+
+
+def title_near_url(text: str, url: str) -> str:
+    # Prefer Markdown link text when the exact URL appears as [title](url).
+    for title, found_url in MARKDOWN_RE.findall(text):
+        if canonical(found_url) == canonical(url):
+            return clean_title(title)
+
+    # Otherwise use the preceding non-metadata line as a lightweight title hint.
+    idx = text.find(url)
+    if idx >= 0:
+        before = text[max(0, idx - 500):idx]
+        lines = [clean_title(x) for x in before.splitlines() if clean_title(x)]
+        for line in reversed(lines):
+            if not re.match(r"^(URL Source|Published Time|Markdown Content|Title):", line, re.I):
+                if len(line) >= 5:
+                    return line[:300]
+    return ""
+
+
+def extract_items(text: str, label: str):
     out, seen = [], set()
-    for a in soup.find_all("a", href=True):
-        href = urljoin(base_url, a.get("href", ""))
-        url = canonical(href)
+
+    # Markdown links first, since they carry better titles.
+    for title, raw_url in MARKDOWN_RE.findall(text):
+        url = canonical(raw_url)
         if not is_article(url) or url in seen:
             continue
-        title = " ".join(a.stripped_strings)
-        title = re.sub(r"\s+", " ", title).strip()
-        if len(title) < 3:
+        seen.add(url)
+        out.append({"url": url, "title": clean_title(title), "label": label})
+
+    # Then any plain SarkariResult URLs exposed in the SERP text.
+    for raw_url in URL_RE.findall(text):
+        url = canonical(raw_url)
+        if not is_article(url) or url in seen:
             continue
         seen.add(url)
-        out.append({"url": url, "title": title[:300], "label": label})
+        out.append({"url": url, "title": title_near_url(text, raw_url), "label": label})
+
     return out
 
 
 def main():
-    all_items, seen = [], set()
-    diagnostics = []
     now = datetime.now(timezone.utc).isoformat()
+    all_items, global_seen = [], set()
+    diagnostics = []
 
-    for source_url, label in SOURCES:
+    for label, query in SEARCHES:
         try:
-            html = fetch_html(source_url)
-            items = parse_category(html, source_url, label)
-            diagnostics.append({"label": label, "ok": True, "count": len(items)})
+            text = search_jina(query)
+            items = extract_items(text, label)
+            accepted = 0
             for pos, item in enumerate(items):
-                if item["url"] in seen:
+                if item["url"] in global_seen:
                     continue
-                seen.add(item["url"])
+                global_seen.add(item["url"])
                 item["position"] = pos
                 item["discovered_at"] = now
                 all_items.append(item)
+                accepted += 1
+            diagnostics.append({
+                "label": label,
+                "ok": accepted > 0,
+                "count": accepted,
+                "bytes": len(text),
+                "source": "s.jina.ai",
+            })
         except Exception as e:
-            diagnostics.append({"label": label, "ok": False, "error": str(e)[:300], "count": 0})
+            diagnostics.append({
+                "label": label,
+                "ok": False,
+                "count": 0,
+                "error": str(e)[:300],
+                "source": "s.jina.ai",
+            })
+        time.sleep(1)
 
     payload = {
-        "version": 4,
+        "version": "4.1",
         "generated_at": now,
-        "source": "sarkariresult.com via GitHub Actions collector",
-        "items": all_items[:2500],
+        "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions",
+        "items": all_items[:500],
         "diagnostics": diagnostics,
     }
 
@@ -122,7 +182,7 @@ def main():
     print(json.dumps({"generated_at": now, "items": len(all_items), "diagnostics": diagnostics}, ensure_ascii=False))
 
     if not all_items:
-        raise SystemExit("No article URLs discovered; feed.json kept for diagnostics but workflow will fail.")
+        raise SystemExit("V4.1 discovered 0 article URLs. feed.json contains diagnostics.")
 
 
 if __name__ == "__main__":
