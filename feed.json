@@ -1,274 +1,360 @@
 {
-  "version": "4.2",
-  "generated_at": "2026-08-09T14:19:13.915845+00:00",
-  "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions",
+  "version": "4.3",
+  "generated_at": "2026-08-09T16:48:10.146096+00:00",
+  "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions; source Important Links extracted by collector.py",
   "items": [
     {
-      "url": "https://www.sarkariresult.com/bank/sbi-apprentices-2026/",
-      "title": "State Bank of India",
+      "url": "https://www.sarkariresult.com/2026/up-kaushal-vikas-mission-aug26/",
+      "title": "[4] URL Source:",
       "label": "Latest Jobs",
       "position": 0,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
-      "url": "https://www.sarkariresult.com/2026/join-indian-army-jag-125-entry-july26/",
-      "title": "[5] URL Source:",
-      "label": "Latest Jobs",
-      "position": 1,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/sbi-clerk-backlog-aug26/",
+      "url": "https://www.sarkariresult.com/2026/upeida-various-post-aug26/",
       "title": "[7] URL Source:",
       "label": "Latest Jobs",
-      "position": 2,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 1,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
-      "url": "https://www.sarkariresult.com/2026/railway-rrb-junior-engineer-cen-04-2026/",
-      "title": "[9] URL Source:",
+      "url": "https://www.sarkariresult.com/2026/icsi-executive-assistant-july26/",
+      "title": "[8] URL Source:",
       "label": "Latest Jobs",
-      "position": 3,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 2,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
-      "url": "https://www.sarkariresult.com/2026/nta-csir-net-june2026/",
+      "url": "https://www.sarkariresult.com/2026/up-ssp-mts-deo-august26/",
       "title": "[10] URL Source:",
       "label": "Latest Jobs",
-      "position": 4,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/jee-advanced-2026/",
-      "title": "[2] URL Source:",
-      "label": "Result",
-      "position": 0,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 3,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/bihar-2yr-bed-2/",
       "title": "[3] URL Source:",
       "label": "Result",
-      "position": 1,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 0,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
-      "url": "https://www.sarkariresult.com/railway/rrb-group-d-cen-08-2024/",
+      "url": "https://www.sarkariresult.com/2026/jee-advanced-2026/",
       "title": "[5] URL Source:",
       "label": "Result",
-      "position": 2,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 1,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2025/ugc-net-december-2025/",
-      "title": "[6] URL Source:",
+      "title": "[7] URL Source:",
       "label": "Result",
-      "position": 3,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 2,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
-      "url": "https://www.sarkariresult.com/ssc/ssc-cgl-2025/",
+      "url": "https://www.sarkariresult.com/bank/ibps-rrb-14th-2025/",
       "title": "[8] URL Source:",
       "label": "Result",
+      "position": 3,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/2025/uppsc-lt-grade-teacher-2025/",
+      "title": "[9] URL Source:",
+      "label": "Result",
       "position": 4,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/upbed-2026/",
-      "title": "[9] URL Source:",
-      "label": "Result",
-      "position": 5,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/nta-nssnet-2026/",
       "title": "[10] URL Source:",
       "label": "Result",
-      "position": 6,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 5,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/delhi/dsssb-admit-card-download/",
       "title": "[3] URL Source:",
       "label": "Admit Card",
       "position": 0,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/htet-dec-2025/",
-      "title": "[4] URL Source:",
-      "label": "Admit Card",
-      "position": 1,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/up-police-constable-jan26/",
+      "title": "[4] URL Source:",
+      "label": "Admit Card",
+      "position": 1,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/htet-dec-2025/",
       "title": "[5] URL Source:",
       "label": "Admit Card",
       "position": 2,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/nta-ugc-net-june-2026/",
-      "title": "[6] URL Source:",
-      "label": "Admit Card",
-      "position": 3,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/nta-cuet-ug-2026/",
-      "title": "[7] URL Source:",
+      "title": "[6] URL Source:",
       "label": "Admit Card",
-      "position": 4,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 3,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2024/ccc-admit-card/",
+      "title": "[7] URL Source:",
+      "label": "Admit Card",
+      "position": 4,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/nta-ugc-net-june-2026/",
       "title": "[8] URL Source:",
       "label": "Admit Card",
       "position": 5,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/railway/rrb-ntpc-ug-07-2025/",
-      "title": "[10] URL Source:",
-      "label": "Admit Card",
-      "position": 6,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/bseb-answer-key/",
       "title": "[2] URL Source:",
       "label": "Answer Key",
       "position": 0,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/bpsc-stenographer-01-2026/",
-      "title": "[3] URL Source:",
+      "title": "[4] URL Source:",
       "label": "Answer Key",
-      "position": 1,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 2,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/upsssc/upsssc-je-08-exam-2024/",
       "title": "[6] URL Source:",
       "label": "Answer Key",
       "position": 3,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
-      "url": "https://www.sarkariresult.com/upsssc/upsssc-fhw-11-exam-2024/",
-      "title": "[8] URL Source:",
+      "url": "https://www.sarkariresult.com/2026/gate-2026/",
+      "title": "[10] URL Source:",
       "label": "Answer Key",
       "position": 4,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/ssc/ssc-cgl-2026/",
-      "title": "[4] URL Source:",
-      "label": "Syllabus",
-      "position": 0,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/sbi-po-june26/",
-      "title": "[6] URL Source:",
+      "title": "[4] URL Source:",
       "label": "Syllabus",
-      "position": 2,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/hcl-executive-june-2026/",
-      "title": "[7] URL Source:",
-      "label": "Syllabus",
-      "position": 3,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/upcisb-various-post-may26/",
-      "title": "[8] URL Source:",
-      "label": "Syllabus",
-      "position": 4,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 0,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/ssc/ssc-jht-2026/",
+      "title": "[5] URL Source:",
+      "label": "Syllabus",
+      "position": 1,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/hcl-executive-june-2026/",
+      "title": "[6] URL Source:",
+      "label": "Syllabus",
+      "position": 2,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/2025/uppsc-gic-lecturer-2025/",
+      "title": "[7] URL Source:",
+      "label": "Syllabus",
+      "position": 3,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/ssc/ssc-cgl-2026/",
       "title": "[9] URL Source:",
       "label": "Syllabus",
       "position": 5,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/nta-csir-net-june2026/",
+      "title": "[10] URL Source:",
+      "label": "Syllabus",
+      "position": 6,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/abvmu-up-cnet-2026/",
-      "title": "[3] URL Source:",
+      "title": "[2] URL Source:",
       "label": "Admission",
       "position": 0,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/updeled-admissions-2/",
-      "title": "[4] URL Source:",
+      "title": "[3] URL Source:",
       "label": "Admission",
       "position": 1,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
       "url": "https://www.sarkariresult.com/2026/au-pgat-2026/",
-      "title": "[6] URL Source:",
+      "title": "[4] URL Source:",
       "label": "Admission",
       "position": 2,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     },
     {
-      "url": "https://www.sarkariresult.com/2026/nta-icar-aieea-2/",
-      "title": "[10] URL Source:",
+      "url": "https://www.sarkariresult.com/author/old_sr2026/",
+      "title": "[5] URL Source:",
       "label": "Admission",
-      "position": 4,
-      "discovered_at": "2026-08-09T14:19:13.915845+00:00"
+      "position": 3,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/uptac-2026-admissions/",
+      "title": "[9] URL Source:",
+      "label": "Admission",
+      "position": 5,
+      "discovered_at": "2026-08-09T16:48:10.146096+00:00",
+      "source_fetch_status": "failed_http_403_safari17_0_blocked_body_bytes_919",
+      "important_links": [],
+      "important_links_count": 0
     }
   ],
   "diagnostics": [
     {
       "label": "Latest Jobs",
       "ok": true,
-      "count": 5,
-      "bytes": 13455,
+      "count": 4,
+      "bytes": 25084,
       "source": "s.jina.ai"
     },
     {
       "label": "Result",
       "ok": true,
-      "count": 7,
-      "bytes": 6335,
+      "count": 6,
+      "bytes": 6304,
       "source": "s.jina.ai"
     },
     {
       "label": "Admit Card",
       "ok": true,
-      "count": 7,
-      "bytes": 6377,
+      "count": 6,
+      "bytes": 6356,
       "source": "s.jina.ai"
     },
     {
       "label": "Answer Key",
       "ok": true,
       "count": 4,
-      "bytes": 6333,
+      "bytes": 6317,
       "source": "s.jina.ai"
     },
     {
       "label": "Syllabus",
       "ok": true,
-      "count": 5,
-      "bytes": 6476,
+      "count": 6,
+      "bytes": 6452,
       "source": "s.jina.ai"
     },
     {
       "label": "Admission",
       "ok": true,
-      "count": 4,
-      "bytes": 6328,
+      "count": 5,
+      "bytes": 6348,
       "source": "s.jina.ai"
     }
   ]
