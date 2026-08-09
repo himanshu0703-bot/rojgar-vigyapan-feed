@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -10,8 +11,7 @@ try:
 except Exception:
     requests = None
 
-# V4.1: discovery no longer requests SarkariResult category pages directly.
-# It asks Jina Search for indexed SarkariResult article URLs, then writes feed.json.
+# V4.2: discovery uses authenticated Jina Search for indexed SarkariResult article URLs, then writes feed.json.
 SEARCHES = [
     ("Latest Jobs", "site:sarkariresult.com Sarkari Result latest job online form vacancy 2026"),
     ("Result", "site:sarkariresult.com Sarkari Result result declared merit list score card 2026"),
@@ -20,6 +20,8 @@ SEARCHES = [
     ("Syllabus", "site:sarkariresult.com Sarkari Result syllabus exam pattern 2026"),
     ("Admission", "site:sarkariresult.com Sarkari Result admission online form counselling 2026"),
 ]
+
+JINA_API_KEY = os.environ.get("JINA_API_KEY", "").strip()
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36",
@@ -60,16 +62,18 @@ def is_article(url: str) -> bool:
     return True
 
 
-def fetch_text(url: str) -> str:
+def fetch_text(url: str, extra_headers=None) -> str:
     if requests is None:
         raise RuntimeError("curl_cffi is not installed")
     last = None
-    # Search endpoint is normally accessible without a key at the public rate limit.
+    headers = dict(HEADERS)
+    if extra_headers:
+        headers.update(extra_headers)
     for impersonate in ("chrome", "chrome124", "safari17_0"):
         try:
             r = requests.get(
                 url,
-                headers=HEADERS,
+                headers=headers,
                 impersonate=impersonate,
                 timeout=45,
                 allow_redirects=True,
@@ -86,7 +90,12 @@ def fetch_text(url: str) -> str:
 
 def search_jina(query: str) -> str:
     # Official Jina Search endpoint: https://s.jina.ai/<query>
-    return fetch_text("https://s.jina.ai/" + quote(query, safe=""))
+    if not JINA_API_KEY:
+        raise RuntimeError("JINA_API_KEY environment variable is missing")
+    return fetch_text(
+        "https://s.jina.ai/" + quote(query, safe=""),
+        {"Authorization": "Bearer " + JINA_API_KEY},
+    )
 
 
 def clean_title(text: str) -> str:
@@ -171,7 +180,7 @@ def main():
         time.sleep(1)
 
     payload = {
-        "version": "4.1",
+        "version": "4.2",
         "generated_at": now,
         "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions",
         "items": all_items[:500],
@@ -182,7 +191,7 @@ def main():
     print(json.dumps({"generated_at": now, "items": len(all_items), "diagnostics": diagnostics}, ensure_ascii=False))
 
     if not all_items:
-        raise SystemExit("V4.1 discovered 0 article URLs. feed.json contains diagnostics.")
+        raise SystemExit("V4.2 discovered 0 article URLs. feed.json contains diagnostics.")
 
 
 if __name__ == "__main__":
