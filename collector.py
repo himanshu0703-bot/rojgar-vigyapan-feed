@@ -188,15 +188,130 @@ def clean_visible_text(value) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
-def source_body_is_blocked(text: str) -> bool:
+def source_body_block_reason(text: str) -> str:
     value = text or ""
     if re.search(r"warning:\s*target url returned error\s+\d{3}", value, re.I):
-        return True
+        return "jina_target_url_error_warning"
     if re.search(r"the request could not be satisfied", value, re.I) and re.search(r"cloudfront", value, re.I):
-        return True
+        return "cloudfront_request_not_satisfied"
     if re.search(r"\b(?:403|429)\s+error\b", value, re.I) and re.search(r"request blocked|access denied|cloudfront", value, re.I):
-        return True
-    return False
+        return "http_403_or_429_blocking_text"
+    return ""
+
+
+def source_body_is_blocked(text: str) -> bool:
+    return bool(source_body_block_reason(text))
+
+
+def important_links_heading_present(text: str) -> bool:
+    return bool(re.search(r"(?:some\s+useful\s+)?important\s+links", text or "", re.I))
+
+
+def href_like_link_count(text: str) -> int:
+    value = text or ""
+    html_hrefs = len(re.findall(r"\bhref\s*=\s*['\"]?https?://", value, re.I))
+    markdown_links = len(re.findall(r"\[[^\]]+\]\(\s*<?https?://", value, re.I))
+    reference_links = len(re.findall(r"^\s*\[[^\]]+\]:\s*<?https?://", value, re.I | re.M))
+    return html_hrefs + markdown_links + reference_links
+
+
+def sanitize_diagnostic_text(value: str, limit: int = 500) -> str:
+    preview = str(value or "")[:4000]
+    preview = re.sub(r"(?i)\bbearer\s+[A-Za-z0-9._~+\-/=]+", "Bearer [REDACTED]", preview)
+    preview = re.sub(r"\bjina_[A-Za-z0-9_-]+", "[REDACTED_JINA_KEY]", preview)
+    preview = re.sub(
+        r"(?i)(['\"]?(?:authorization|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|"
+        r"secret|password|passwd|cookie|set-cookie|session(?:id)?)['\"]?\s*[:=]\s*)"
+        r"['\"]?[^'\"\s,;}&]+",
+        r"\1[REDACTED]",
+        preview,
+    )
+    preview = re.sub(
+        r"(?i)([?&](?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password)=)"
+        r"[^&#\s]+",
+        r"\1[REDACTED]",
+        preview,
+    )
+    preview = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "[REDACTED_JWT]", preview)
+    preview = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", " ", preview)
+    return preview[:limit]
+
+
+def response_content_type(response) -> str:
+    headers = getattr(response, "headers", {}) or {}
+    try:
+        return str(headers.get("content-type") or headers.get("Content-Type") or "unknown")
+    except Exception:
+        return "unknown"
+
+
+def response_body_byte_count(response, text: str) -> int:
+    content = getattr(response, "content", None)
+    if isinstance(content, (bytes, bytearray)):
+        return len(content)
+    return len((text or "").encode("utf-8", errors="replace"))
+
+
+def jina_body_characteristics(text: str, content_type: str):
+    value = text or ""
+    lower = value.casefold()
+    kinds = []
+    block_reason = source_body_block_reason(value)
+    if block_reason:
+        kinds.append("cloudflare_or_403_wrapper")
+    if "json" in (content_type or "").casefold() or value.lstrip().startswith(("{", "[")):
+        kinds.append("json")
+    if re.search(r"<(?:!doctype|html|head|body|table|title)\b", value, re.I):
+        kinds.append("html")
+    if important_links_heading_present(value) or re.search(r"^\s{0,3}#{1,6}\s+", value, re.M) or re.search(r"\[[^\]]+\]\(https?://", value, re.I):
+        kinds.append("markdown")
+    if re.search(
+        r"\b(?:sign in to continue|please sign in|please log in|login required|"
+        r"enter your (?:username|email|password)|authentication required)\b",
+        lower,
+    ) or re.search(r"\btype\s*=\s*['\"]password['\"]", value, re.I):
+        kinds.append("login_page")
+    if not block_reason and re.search(
+        r"(?:^|\n)\s*(?:title:\s*)?(?:access denied|forbidden|unauthorized|"
+        r"internal server error|bad gateway|service unavailable)\s*(?:\n|$)",
+        value,
+        re.I,
+    ):
+        kinds.append("other_error_format")
+    return kinds or ["plain_text"], block_reason
+
+
+def log_jina_response_diagnostics(endpoint_name: str, request_url: str, target_url: str, response):
+    text = response.text or ""
+    content_type = response_content_type(response)
+    kinds, block_reason = jina_body_characteristics(text, content_type)
+    status = int(response.status_code)
+    byte_count = response_body_byte_count(response, text)
+    heading_found = important_links_heading_present(text)
+    link_count = href_like_link_count(text)
+    print(
+        f"[jina-response] endpoint={endpoint_name} "
+        f"request_url={sanitize_diagnostic_text(request_url, 700)!r} "
+        f"target_url={sanitize_diagnostic_text(target_url, 700)!r} "
+        f"http_status={status} content_type={content_type!r} "
+        f"response_bytes={byte_count} response_chars={len(text)} "
+        f"body_kinds={','.join(kinds)} block_reason={block_reason or 'none'} "
+        f"important_links_heading={heading_found} href_like_links={link_count}"
+    )
+    print(
+        f"[jina-response][preview] endpoint={endpoint_name} "
+        f"preview={sanitize_diagnostic_text(text)!r}"
+    )
+    return {
+        "text": text,
+        "content_type": content_type,
+        "status": status,
+        "byte_count": byte_count,
+        "body_kinds": kinds,
+        "block_reason": block_reason,
+        "heading_found": heading_found,
+        "link_count": link_count,
+    }
 
 
 def content_representation(text: str) -> str:
@@ -204,6 +319,103 @@ def content_representation(text: str) -> str:
     if re.search(r"<(?:!doctype|html|body|table|tr|td)\b", text or "", re.I):
         return "html"
     return "markdown"
+
+
+def extract_jina_payload_content(text: str, content_type: str):
+    looks_json = "json" in (content_type or "").casefold() or (text or "").lstrip().startswith("{")
+    if not looks_json:
+        return text or "", ""
+    try:
+        payload = json.loads(text or "")
+    except Exception:
+        return "", "invalid_json_response"
+    if not isinstance(payload, dict):
+        return "", "json_response_is_not_an_object"
+
+    code = payload.get("code")
+    if isinstance(code, int) and not 200 <= code < 300:
+        return "", f"jina_json_code_{code}"
+    internal_status = payload.get("status")
+    if isinstance(internal_status, int) and internal_status >= 40000:
+        return "", f"jina_json_status_{internal_status}"
+
+    data = payload.get("data")
+    if isinstance(data, dict):
+        content = data.get("content")
+    elif isinstance(data, str):
+        content = data
+    else:
+        content = payload.get("content")
+    if not isinstance(content, str) or not content.strip():
+        return "", "jina_json_content_missing"
+    return content, ""
+
+
+def jina_content_rejection_reason(content: str, content_type: str) -> str:
+    if len(content or "") <= 100:
+        return "content_too_short"
+    block_reason = source_body_block_reason(content)
+    if block_reason:
+        return block_reason
+    kinds, _ = jina_body_characteristics(content, content_type)
+    if "login_page" in kinds:
+        return "login_page"
+    if "other_error_format" in kinds:
+        return "other_error_format"
+    if not important_links_heading_present(content):
+        return "important_links_heading_not_found"
+    return ""
+
+
+def evaluate_jina_response(endpoint_name: str, request_url: str, target_url: str, response):
+    diagnostics = log_jina_response_diagnostics(endpoint_name, request_url, target_url, response)
+    if not 200 <= diagnostics["status"] < 300:
+        rejection_reason = f"http_{diagnostics['status']}"
+        print(
+            f"[jina-response][decision] endpoint={endpoint_name} "
+            f"accepted=False rejection_reason={rejection_reason}"
+        )
+        return None, rejection_reason
+
+    content, payload_error = extract_jina_payload_content(
+        diagnostics["text"], diagnostics["content_type"]
+    )
+    if payload_error:
+        print(
+            f"[jina-response][decision] endpoint={endpoint_name} "
+            f"accepted=False rejection_reason={payload_error}"
+        )
+        return None, payload_error
+
+    content_type = diagnostics["content_type"]
+    response_was_json = (
+        "json" in content_type.casefold()
+        or diagnostics["text"].lstrip().startswith("{")
+    )
+    if response_was_json:
+        kinds, block_reason = jina_body_characteristics(content, "text/markdown")
+        print(
+            f"[jina-response][extracted-content] endpoint={endpoint_name} "
+            f"content_chars={len(content)} body_kinds={','.join(kinds)} "
+            f"block_reason={block_reason or 'none'} "
+            f"important_links_heading={important_links_heading_present(content)} "
+            f"href_like_links={href_like_link_count(content)} "
+            f"preview={sanitize_diagnostic_text(content)!r}"
+        )
+        content_type = "text/markdown"
+
+    rejection_reason = jina_content_rejection_reason(content, content_type)
+    if rejection_reason:
+        print(
+            f"[jina-response][decision] endpoint={endpoint_name} "
+            f"accepted=False rejection_reason={rejection_reason}"
+        )
+        return None, rejection_reason
+    print(
+        f"[jina-response][decision] endpoint={endpoint_name} "
+        "accepted=True rejection_reason=none"
+    )
+    return content, ""
 
 
 def fetch_source_page(url: str):
@@ -260,10 +472,10 @@ def fetch_source_page(url: str):
         return result
 
     result["jina_attempted"] = True
-    # Use authenticated Reader for a fresh browser-backed fetch after direct attempts fail.
-    # Markdown preserves visible anchor text and href without depending on source table HTML.
+    # First retain the documented Reader URL form so its exact response is visible
+    # in diagnostics. If it is unusable, try the authenticated JSON API form.
     jina_url = "https://r.jina.ai/" + url
-    jina_headers = {
+    jina_url_headers = {
         "Authorization": f"Bearer {JINA_API_KEY}",
         "Accept": "text/plain",
         "X-Engine": "browser",
@@ -271,36 +483,82 @@ def fetch_source_page(url: str):
         "X-Return-Format": "markdown",
         "X-Timeout": "60",
     }
+    jina_attempts = []
     try:
         response = requests.get(
             jina_url,
-            headers=jina_headers,
+            headers=jina_url_headers,
             impersonate="chrome",
             timeout=75,
             allow_redirects=True,
         )
-        text = response.text or ""
-        status = int(response.status_code)
-        blocked = source_body_is_blocked(text)
-        result["jina_http_status"] = status
-        if 200 <= status < 300 and len(text) > 100 and not blocked:
-            representation = content_representation(text)
+        result["jina_http_status"] = int(response.status_code)
+        content, rejection_reason = evaluate_jina_response(
+            "reader_url_get", jina_url, url, response
+        )
+        if content is not None:
+            representation = content_representation(content)
             result.update({
-                "content": text,
-                "jina_status": f"ok_http_{status}_bytes_{len(text)}",
-                "representation": f"jina_{representation}",
-                "source_fetch_status": f"ok_jina_{representation}_http_{status}",
+                "content": content,
+                "jina_status": f"reader_url_get=ok_http_{response.status_code}",
+                "representation": f"jina_url_{representation}",
+                "source_fetch_status": f"ok_jina_url_{representation}_http_{response.status_code}",
             })
             return result
-        suffix = "_blocked_body" if blocked else ""
-        result["jina_status"] = f"failed_http_{status}{suffix}_bytes_{len(text)}"
+        jina_attempts.append(
+            f"reader_url_get=failed_http_{response.status_code}_{rejection_reason}_"
+            f"bytes_{response_body_byte_count(response, response.text or '')}"
+        )
+    except Exception as error:
+        jina_attempts.append(f"reader_url_get=failed_{type(error).__name__.lower()}")
+
+    jina_api_url = "https://r.jina.ai/"
+    jina_api_headers = {
+        "Authorization": f"Bearer {JINA_API_KEY}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-Engine": "cf-browser-rendering",
+        "X-No-Cache": "true",
+        "X-Return-Format": "markdown",
+        "X-Timeout": "60",
+    }
+    try:
+        response = requests.post(
+            jina_api_url,
+            headers=jina_api_headers,
+            json={"url": url},
+            timeout=75,
+            allow_redirects=True,
+        )
+        result["jina_http_status"] = int(response.status_code)
+        content, rejection_reason = evaluate_jina_response(
+            "authenticated_api_post", jina_api_url, url, response
+        )
+        if content is not None:
+            representation = content_representation(content)
+            jina_attempts.append(f"authenticated_api_post=ok_http_{response.status_code}")
+            result.update({
+                "content": content,
+                "jina_status": ";".join(jina_attempts),
+                "representation": f"jina_api_{representation}",
+                "source_fetch_status": f"ok_jina_api_{representation}_http_{response.status_code}",
+            })
+            return result
+        final_attempt = (
+            f"authenticated_api_post=failed_http_{response.status_code}_{rejection_reason}_"
+            f"bytes_{response_body_byte_count(response, response.text or '')}"
+        )
+        jina_attempts.append(final_attempt)
+        result["jina_status"] = ";".join(jina_attempts)
         result["source_fetch_status"] = (
-            f"failed_direct_and_jina_http_{status}{suffix}_bytes_{len(text)}"
+            f"failed_direct_and_jina_api_http_{response.status_code}_{rejection_reason}_"
+            f"bytes_{response_body_byte_count(response, response.text or '')}"
         )
     except Exception as error:
         error_name = type(error).__name__.lower()
-        result["jina_status"] = f"failed_{error_name}"
-        result["source_fetch_status"] = f"failed_direct_and_jina_{error_name}"
+        jina_attempts.append(f"authenticated_api_post=failed_{error_name}")
+        result["jina_status"] = ";".join(jina_attempts)
+        result["source_fetch_status"] = f"failed_direct_and_jina_api_{error_name}"
     return result
 
 
