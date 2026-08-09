@@ -2,9 +2,12 @@ import json
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urljoin, urlparse
+
+from bs4 import BeautifulSoup
 
 try:
     from curl_cffi import requests
@@ -36,6 +39,40 @@ BLOCKED_SEGMENTS = {
 STATIC_EXT = re.compile(r"\.(?:jpg|jpeg|png|gif|webp|svg|css|js|xml|txt|pdf|zip|rar)$", re.I)
 URL_RE = re.compile(r"https?://(?:www\.)?sarkariresult\.com/[^\s<>()\]\[\"']+", re.I)
 MARKDOWN_RE = re.compile(r"\[([^\]]+)\]\((https?://(?:www\.)?sarkariresult\.com/[^)\s]+)\)", re.I)
+
+IMPORTANT_LINKS_HEADING_RE = re.compile(r"^(?:some\s+useful\s+)?important\s+links\s*:?\s*$", re.I)
+SECTION_STOP_RE = re.compile(
+    r"^(?:frequently\s+asked\s+questions|faqs?|disclaimer|related\s+posts?|latest\s+posts?|"
+    r"find\s+more\s+latest\s+updates|welcome\s+to\s+this\s+official\s+website)",
+    re.I,
+)
+PROMOTIONAL_TEXT_RE = re.compile(
+    r"(?:android\s+apps?|apple\s+ios\s+apps?|ios\s+apps?|sarkari\s+(?:result\s+)?tools?|"
+    r"sarkari\s+result\s+(?:android|apple)|join\s+sarkari\s+result\s+channel|"
+    r"sarkari\s+result.*(?:telegram|whatsapp|channel|tools?|app)|"
+    r"(?:image|signature)\s*resizer|pdf\s*compress|age\s*calculator|typing\s*test|more\s*tools)",
+    re.I,
+)
+NAVIGATION_LABELS = {
+    "home", "homepage", "about us", "contact us", "terms and conditions",
+    "terms & conditions", "privacy policy", "disclaimer", "join us", "follow",
+    "whatsapp", "telegram", "instagram", "youtube", "threads", "facebook",
+    "category", "find more latest updates", "up scholarship", "up-scholarship",
+    "bpsc", "upsssc", "ibps", "upsc", "air force", "navy", "rpsc",
+    "delhi dssb", "delhi dsssb", "hssc", "police", "railway", "railways",
+    "latest job", "latest jobs",
+}
+SOCIAL_HOSTS = {
+    "t.me", "telegram.me", "whatsapp.com", "www.whatsapp.com", "instagram.com",
+    "www.instagram.com", "facebook.com", "www.facebook.com", "youtube.com",
+    "www.youtube.com", "threads.net", "www.threads.net", "play.google.com",
+    "apps.apple.com",
+}
+SARKARIRESULT_NAV_PATHS = {
+    "", "latestjob", "result", "admitcard", "answerkey", "syllabus", "admission",
+    "contact", "privacy", "disclaimer", "about", "search", "category", "tag",
+    "tools", "tool", "android", "ios", "app",
+}
 
 
 def canonical(url: str) -> str:
@@ -144,6 +181,261 @@ def extract_items(text: str, label: str):
     return out
 
 
+def clean_visible_text(value) -> str:
+    if hasattr(value, "stripped_strings"):
+        value = " ".join(value.stripped_strings)
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def source_body_is_blocked(text: str) -> bool:
+    value = text or ""
+    if re.search(r"warning:\s*target url returned error\s+\d{3}", value, re.I):
+        return True
+    if re.search(r"the request could not be satisfied", value, re.I) and re.search(r"cloudfront", value, re.I):
+        return True
+    if re.search(r"\b(?:403|429)\s+error\b", value, re.I) and re.search(r"request blocked|access denied|cloudfront", value, re.I):
+        return True
+    return False
+
+
+def fetch_source_page(url: str):
+    """Fetch one article without changing the existing Jina discovery fetcher."""
+    if requests is None:
+        return None, "failed_curl_cffi_not_installed"
+
+    last_status = "failed_unknown"
+    for impersonate in ("chrome", "chrome124", "safari17_0"):
+        try:
+            response = requests.get(
+                url,
+                headers=HEADERS,
+                impersonate=impersonate,
+                timeout=30,
+                allow_redirects=True,
+            )
+            text = response.text or ""
+            status = int(response.status_code)
+            if 200 <= status < 300 and len(text) > 100 and not source_body_is_blocked(text):
+                return text, f"ok_http_{status}_{impersonate}"
+            suffix = "_blocked_body" if source_body_is_blocked(text) else ""
+            last_status = f"failed_http_{status}_{impersonate}{suffix}_bytes_{len(text)}"
+        except Exception as error:
+            error_name = type(error).__name__.lower()
+            last_status = f"failed_{impersonate}_{error_name}"
+        time.sleep(0.5)
+
+    return None, last_status
+
+
+def exact_href(anchor, article_url: str) -> str:
+    href = str(anchor.get("href") or "").strip()
+    if not href or re.match(r"^(?:javascript:|mailto:|tel:|#)", href, re.I):
+        return ""
+    return href if re.match(r"^https?://", href, re.I) else urljoin(article_url, href)
+
+
+def important_link_rejection_reason(label: str, text: str, url: str) -> str:
+    label = clean_visible_text(label)
+    text = clean_visible_text(text)
+    url = str(url or "").strip()
+    if not label:
+        return "empty source row label"
+    if not text:
+        return "empty visible anchor text"
+    if not re.match(r"^https?://", url, re.I):
+        return "href is missing or is not HTTP(S)"
+    if len(label) > 160:
+        return "source row label is too long"
+    if len(text) > 240:
+        return "visible anchor text is too long"
+
+    label_key = label.casefold()
+    text_key = text.casefold()
+    if label_key in NAVIGATION_LABELS or text_key in NAVIGATION_LABELS:
+        return "promotional or navigation label/text"
+    if PROMOTIONAL_TEXT_RE.search(label) or PROMOTIONAL_TEXT_RE.search(text):
+        return "SarkariResult promotional tools/app/channel row"
+    if re.fullmatch(r"sarkari\s+result(?:®)?", label, re.I):
+        return "SarkariResult branding/navigation row"
+
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").casefold()
+    if any(host == social or host.endswith("." + social) for social in SOCIAL_HOSTS):
+        return "social/app/channel destination"
+
+    if host == "sarkariresult.com" or host.endswith(".sarkariresult.com"):
+        parts = [part.casefold() for part in parsed.path.strip("/").split("/") if part]
+        if not parts or (len(parts) == 1 and parts[0] in SARKARIRESULT_NAV_PATHS):
+            return "SarkariResult homepage/category/navigation destination"
+
+    return ""
+
+
+def row_cells(row):
+    return [
+        cell for cell in row.find_all(["td", "th"])
+        if cell.find_parent("tr") is row
+    ]
+
+
+def candidate_rows_after_marker(marker):
+    marker_row = marker.find_parent("tr")
+    if marker_row is not None:
+        table = marker_row.find_parent("table")
+        if table is not None:
+            rows = [row for row in table.find_all("tr") if row.find_parent("table") is table]
+            for index, row in enumerate(rows):
+                if row is marker_row:
+                    return rows[index + 1:], ("table", id(table), index)
+
+    next_table = marker.find_next("table")
+    if next_table is not None:
+        rows = [row for row in next_table.find_all("tr") if row.find_parent("table") is next_table]
+        return rows, ("next_table", id(next_table), 0)
+    return [], ("none", id(marker), 0)
+
+
+def raw_important_link_candidates(rows, article_url: str):
+    candidates = []
+    anchors_found = 0
+    accepted_shape_seen = False
+
+    for row in rows:
+        cells = row_cells(row)
+        row_text = clean_visible_text(row)
+        if accepted_shape_seen and len(cells) < 2 and SECTION_STOP_RE.match(row_text):
+            break
+        if len(cells) < 2:
+            continue
+
+        label = clean_visible_text(cells[0])
+        if not label or IMPORTANT_LINKS_HEADING_RE.fullmatch(label):
+            continue
+
+        anchors = []
+        for cell in cells[1:]:
+            anchors.extend(cell.find_all("a", href=True))
+        anchors_found += len(anchors)
+        if not anchors:
+            continue
+
+        accepted_shape_seen = True
+        for anchor in anchors:
+            candidates.append({
+                "label": label,
+                "text": clean_visible_text(anchor),
+                "url": exact_href(anchor, article_url),
+            })
+
+    return candidates, anchors_found
+
+
+def extract_important_links(html: str, article_url: str):
+    soup = BeautifulSoup(html or "", "lxml")
+    markers = []
+    for node in soup.find_all(string=True):
+        if IMPORTANT_LINKS_HEADING_RE.fullmatch(clean_visible_text(node)):
+            markers.append(node.parent)
+
+    section_options = []
+    used_scopes = set()
+    for marker in markers:
+        rows, scope_key = candidate_rows_after_marker(marker)
+        if scope_key in used_scopes:
+            continue
+        used_scopes.add(scope_key)
+        raw_candidates, anchors_found = raw_important_link_candidates(rows, article_url)
+        accepted = []
+        rejected = []
+        seen = set()
+        for candidate in raw_candidates:
+            reason = important_link_rejection_reason(
+                candidate["label"], candidate["text"], candidate["url"]
+            )
+            if reason:
+                rejected.append({**candidate, "reason": reason})
+                continue
+            key = (
+                candidate["label"].casefold(),
+                candidate["text"].casefold(),
+                candidate["url"],
+            )
+            if key in seen:
+                rejected.append({**candidate, "reason": "duplicate label/text/URL"})
+                continue
+            seen.add(key)
+            accepted.append(candidate)
+
+        section_options.append({
+            "accepted": accepted,
+            "rejected": rejected,
+            "candidates": raw_candidates,
+            "anchors_found": anchors_found,
+        })
+
+    if not section_options:
+        return [], {
+            "section_found": False,
+            "anchors_found": 0,
+            "candidates": [],
+            "rejected": [],
+        }
+
+    best = max(
+        section_options,
+        key=lambda option: (len(option["accepted"]), len(option["candidates"]), option["anchors_found"]),
+    )
+    return best["accepted"], {
+        "section_found": True,
+        "anchors_found": best["anchors_found"],
+        "candidates": best["candidates"],
+        "rejected": best["rejected"],
+    }
+
+
+def enrich_item_with_important_links(item):
+    enriched = dict(item)
+    url = enriched["url"]
+    html, fetch_status = fetch_source_page(url)
+    enriched["source_fetch_status"] = fetch_status
+    enriched["important_links"] = []
+    enriched["important_links_count"] = 0
+
+    if html is None:
+        print(f"[important-links] url={url} fetch={fetch_status} rows=0")
+        return enriched
+
+    try:
+        rows, diagnostics = extract_important_links(html, url)
+    except Exception as error:
+        enriched["source_fetch_status"] = f"{fetch_status}_parse_failed_{type(error).__name__.lower()}"
+        print(f"[important-links] url={url} fetch={enriched['source_fetch_status']} rows=0")
+        return enriched
+
+    enriched["important_links"] = rows
+    enriched["important_links_count"] = len(rows)
+    print(
+        f"[important-links] url={url} fetch={fetch_status} "
+        f"section_found={diagnostics['section_found']} anchors={diagnostics['anchors_found']} "
+        f"candidates={len(diagnostics['candidates'])} rows={len(rows)}"
+    )
+    for rejected in diagnostics["rejected"]:
+        print(
+            "[important-links][rejected] "
+            f"label={rejected['label']!r} text={rejected['text']!r} "
+            f"url={rejected['url']!r} reason={rejected['reason']}"
+        )
+    return enriched
+
+
+def enrich_items_with_important_links(items):
+    if not items:
+        return []
+    worker_count = min(4, len(items))
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        return list(executor.map(enrich_item_with_important_links, items))
+
+
 def main():
     now = datetime.now(timezone.utc).isoformat()
     all_items, global_seen = [], set()
@@ -179,19 +471,27 @@ def main():
             })
         time.sleep(1)
 
+    feed_items = enrich_items_with_important_links(all_items[:500])
+
     payload = {
-        "version": "4.2",
+        "version": "4.3",
         "generated_at": now,
-        "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions",
-        "items": all_items[:500],
+        "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions; source Important Links extracted by collector.py",
+        "items": feed_items,
         "diagnostics": diagnostics,
     }
 
     Path("feed.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"generated_at": now, "items": len(all_items), "diagnostics": diagnostics}, ensure_ascii=False))
+    print(json.dumps({
+        "generated_at": now,
+        "items": len(all_items),
+        "items_written": len(feed_items),
+        "important_links": sum(item["important_links_count"] for item in feed_items),
+        "diagnostics": diagnostics,
+    }, ensure_ascii=False))
 
     if not all_items:
-        raise SystemExit("V4.2 discovered 0 article URLs. feed.json contains diagnostics.")
+        raise SystemExit("V4.3 discovered 0 article URLs. feed.json contains diagnostics.")
 
 
 if __name__ == "__main__":
