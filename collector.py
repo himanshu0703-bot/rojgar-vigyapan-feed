@@ -4,6 +4,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from html import unescape
 from pathlib import Path
 from urllib.parse import quote, urljoin, urlparse
 
@@ -198,12 +199,30 @@ def source_body_is_blocked(text: str) -> bool:
     return False
 
 
-def fetch_source_page(url: str):
-    """Fetch one article without changing the existing Jina discovery fetcher."""
-    if requests is None:
-        return None, "failed_curl_cffi_not_installed"
+def content_representation(text: str) -> str:
+    """Identify the representation returned by the source or Jina Reader."""
+    if re.search(r"<(?:!doctype|html|body|table|tr|td)\b", text or "", re.I):
+        return "html"
+    return "markdown"
 
-    last_status = "failed_unknown"
+
+def fetch_source_page(url: str):
+    """Fetch an article directly, then use authenticated Jina Reader on failure."""
+    result = {
+        "content": None,
+        "direct_status": "not_attempted",
+        "jina_attempted": False,
+        "jina_http_status": None,
+        "jina_status": "not_attempted",
+        "representation": "none",
+        "source_fetch_status": "failed_unknown",
+    }
+    if requests is None:
+        result["direct_status"] = "failed_curl_cffi_not_installed"
+        result["source_fetch_status"] = "failed_curl_cffi_not_installed"
+        return result
+
+    direct_attempts = []
     for impersonate in ("chrome", "chrome124", "safari17_0"):
         try:
             response = requests.get(
@@ -215,16 +234,74 @@ def fetch_source_page(url: str):
             )
             text = response.text or ""
             status = int(response.status_code)
-            if 200 <= status < 300 and len(text) > 100 and not source_body_is_blocked(text):
-                return text, f"ok_http_{status}_{impersonate}"
-            suffix = "_blocked_body" if source_body_is_blocked(text) else ""
-            last_status = f"failed_http_{status}_{impersonate}{suffix}_bytes_{len(text)}"
+            blocked = source_body_is_blocked(text)
+            if 200 <= status < 300 and len(text) > 100 and not blocked:
+                attempt_status = f"ok_http_{status}_{impersonate}_bytes_{len(text)}"
+                direct_attempts.append(attempt_status)
+                result.update({
+                    "content": text,
+                    "direct_status": ";".join(direct_attempts),
+                    "representation": "direct_html",
+                    "source_fetch_status": f"ok_http_{status}_{impersonate}",
+                })
+                return result
+            suffix = "_blocked_body" if blocked else ""
+            direct_attempts.append(
+                f"failed_http_{status}_{impersonate}{suffix}_bytes_{len(text)}"
+            )
         except Exception as error:
-            error_name = type(error).__name__.lower()
-            last_status = f"failed_{impersonate}_{error_name}"
+            direct_attempts.append(f"failed_{impersonate}_{type(error).__name__.lower()}")
         time.sleep(0.5)
 
-    return None, last_status
+    result["direct_status"] = ";".join(direct_attempts)
+    if not JINA_API_KEY:
+        result["jina_status"] = "not_attempted_missing_jina_api_key"
+        result["source_fetch_status"] = "failed_direct_and_missing_jina_api_key"
+        return result
+
+    result["jina_attempted"] = True
+    # Use authenticated Reader for a fresh browser-backed fetch after direct attempts fail.
+    # Markdown preserves visible anchor text and href without depending on source table HTML.
+    jina_url = "https://r.jina.ai/" + url
+    jina_headers = {
+        "Authorization": f"Bearer {JINA_API_KEY}",
+        "Accept": "text/plain",
+        "X-Engine": "browser",
+        "X-No-Cache": "true",
+        "X-Return-Format": "markdown",
+        "X-Timeout": "60",
+    }
+    try:
+        response = requests.get(
+            jina_url,
+            headers=jina_headers,
+            impersonate="chrome",
+            timeout=75,
+            allow_redirects=True,
+        )
+        text = response.text or ""
+        status = int(response.status_code)
+        blocked = source_body_is_blocked(text)
+        result["jina_http_status"] = status
+        if 200 <= status < 300 and len(text) > 100 and not blocked:
+            representation = content_representation(text)
+            result.update({
+                "content": text,
+                "jina_status": f"ok_http_{status}_bytes_{len(text)}",
+                "representation": f"jina_{representation}",
+                "source_fetch_status": f"ok_jina_{representation}_http_{status}",
+            })
+            return result
+        suffix = "_blocked_body" if blocked else ""
+        result["jina_status"] = f"failed_http_{status}{suffix}_bytes_{len(text)}"
+        result["source_fetch_status"] = (
+            f"failed_direct_and_jina_http_{status}{suffix}_bytes_{len(text)}"
+        )
+    except Exception as error:
+        error_name = type(error).__name__.lower()
+        result["jina_status"] = f"failed_{error_name}"
+        result["source_fetch_status"] = f"failed_direct_and_jina_{error_name}"
+    return result
 
 
 def exact_href(anchor, article_url: str) -> str:
@@ -330,6 +407,35 @@ def raw_important_link_candidates(rows, article_url: str):
     return candidates, anchors_found
 
 
+def evaluate_important_link_candidates(raw_candidates):
+    accepted = []
+    rejected = []
+    seen = set()
+    for candidate in raw_candidates:
+        candidate = {
+            "label": clean_visible_text(candidate.get("label")),
+            "text": clean_visible_text(candidate.get("text")),
+            "url": str(candidate.get("url") or "").strip(),
+        }
+        reason = important_link_rejection_reason(
+            candidate["label"], candidate["text"], candidate["url"]
+        )
+        if reason:
+            rejected.append({**candidate, "reason": reason})
+            continue
+        key = (
+            candidate["label"].casefold(),
+            candidate["text"].casefold(),
+            candidate["url"],
+        )
+        if key in seen:
+            rejected.append({**candidate, "reason": "duplicate label/text/URL"})
+            continue
+        seen.add(key)
+        accepted.append(candidate)
+    return accepted, rejected
+
+
 def extract_important_links(html: str, article_url: str):
     soup = BeautifulSoup(html or "", "lxml")
     markers = []
@@ -345,27 +451,161 @@ def extract_important_links(html: str, article_url: str):
             continue
         used_scopes.add(scope_key)
         raw_candidates, anchors_found = raw_important_link_candidates(rows, article_url)
-        accepted = []
-        rejected = []
-        seen = set()
-        for candidate in raw_candidates:
-            reason = important_link_rejection_reason(
-                candidate["label"], candidate["text"], candidate["url"]
-            )
-            if reason:
-                rejected.append({**candidate, "reason": reason})
-                continue
-            key = (
-                candidate["label"].casefold(),
-                candidate["text"].casefold(),
-                candidate["url"],
-            )
-            if key in seen:
-                rejected.append({**candidate, "reason": "duplicate label/text/URL"})
-                continue
-            seen.add(key)
-            accepted.append(candidate)
+        accepted, rejected = evaluate_important_link_candidates(raw_candidates)
 
+        section_options.append({
+            "accepted": accepted,
+            "rejected": rejected,
+            "candidates": raw_candidates,
+            "anchors_found": anchors_found,
+        })
+
+    if not section_options:
+        return [], {
+            "section_found": False,
+            "anchors_found": 0,
+            "candidates": [],
+            "rejected": [],
+        }
+
+    best = max(
+        section_options,
+        key=lambda option: (len(option["accepted"]), len(option["candidates"]), option["anchors_found"]),
+    )
+    return best["accepted"], {
+        "section_found": True,
+        "anchors_found": best["anchors_found"],
+        "candidates": best["candidates"],
+        "rejected": best["rejected"],
+    }
+
+
+MARKDOWN_INLINE_LINK_RE = re.compile(
+    r"\[([^\]]+)\]\(\s*<?(https?://[^\s)>]+)>?(?:\s+['\"][^)]*['\"])?\s*\)",
+    re.I,
+)
+MARKDOWN_REFERENCE_LINK_RE = re.compile(r"\[([^\]]+)\]\[([^\]]+)\]")
+MARKDOWN_REFERENCE_DEF_RE = re.compile(r"^\s*\[([^\]]+)\]:\s*<?(https?://\S+?)>?\s*$", re.I)
+
+
+def clean_markdown_text(value: str) -> str:
+    value = unescape(str(value or ""))
+    value = re.sub(r"^\s{0,3}#{1,6}\s*", "", value)
+    value = re.sub(r"\s+#+\s*$", "", value)
+    value = re.sub(r"<[^>]+>", " ", value)
+    value = re.sub(r"[*_`~]", "", value)
+    value = re.sub(r"\\([\\`*{}\[\]()#+.!_|>-])", r"\1", value)
+    return clean_visible_text(value.strip(" |:-"))
+
+
+def markdown_links_in_line(line: str, references):
+    links = []
+    occupied = []
+    for match in MARKDOWN_INLINE_LINK_RE.finditer(line):
+        links.append({
+            "text": clean_markdown_text(match.group(1)),
+            "url": unescape(match.group(2).replace("\\)", ")")),
+            "start": match.start(),
+        })
+        occupied.append(match.span())
+
+    for match in MARKDOWN_REFERENCE_LINK_RE.finditer(line):
+        if any(start <= match.start() < end for start, end in occupied):
+            continue
+        url = references.get(match.group(2).casefold())
+        if url:
+            links.append({
+                "text": clean_markdown_text(match.group(1)),
+                "url": url,
+                "start": match.start(),
+            })
+    return sorted(links, key=lambda link: link["start"])
+
+
+def markdown_label_before(lines, line_index: int, first_link_start: int) -> str:
+    prefix = clean_markdown_text(lines[line_index][:first_link_start])
+    if prefix:
+        return prefix
+
+    labels = []
+    separator_since_last_label = False
+    for previous_index in range(line_index - 1, max(-1, line_index - 24), -1):
+        previous = lines[previous_index].strip()
+        if not previous:
+            continue
+        cleaned = clean_markdown_text(previous)
+        if re.fullmatch(r"[|:\-–—\s]+", previous):
+            separator_since_last_label = True
+            continue
+        if IMPORTANT_LINKS_HEADING_RE.fullmatch(cleaned):
+            break
+        if MARKDOWN_INLINE_LINK_RE.search(previous) or MARKDOWN_REFERENCE_LINK_RE.search(previous):
+            break
+        if not cleaned or re.match(
+            r"^(?:title|url source|published time|markdown content)\s*:", cleaned, re.I
+        ):
+            continue
+        # Jina represents table cells with standalone pipes. Two adjacent text
+        # blocks without a pipe identify the end of the preceding table row.
+        if labels and not separator_since_last_label:
+            break
+        labels.append(cleaned)
+        separator_since_last_label = False
+    return labels[-1] if labels else ""
+
+
+def raw_markdown_important_link_candidates(lines, article_url: str, references):
+    candidates = []
+    anchors_found = 0
+    for line_index, line in enumerate(lines):
+        links = markdown_links_in_line(line, references)
+        if not links:
+            continue
+        anchors_found += len(links)
+
+        table_cells = [cell for cell in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+        first_cell_has_link = bool(markdown_links_in_line(table_cells[0], references))
+        if (
+            len(table_cells) >= 2
+            and not first_cell_has_link
+            and markdown_links_in_line("|".join(table_cells[1:]), references)
+        ):
+            label = clean_markdown_text(table_cells[0])
+        else:
+            label = markdown_label_before(lines, line_index, links[0]["start"])
+
+        for link in links:
+            href = link["url"].strip()
+            if href and not re.match(r"^https?://", href, re.I):
+                href = urljoin(article_url, href)
+            candidates.append({"label": label, "text": link["text"], "url": href})
+    return candidates, anchors_found
+
+
+def extract_important_links_markdown(markdown: str, article_url: str):
+    lines = (markdown or "").splitlines()
+    references = {}
+    for line in lines:
+        match = MARKDOWN_REFERENCE_DEF_RE.match(line)
+        if match:
+            references[match.group(1).casefold()] = unescape(match.group(2))
+
+    marker_indexes = [
+        index for index, line in enumerate(lines)
+        if IMPORTANT_LINKS_HEADING_RE.fullmatch(clean_markdown_text(line))
+    ]
+    section_options = []
+    for marker_index in marker_indexes:
+        end_index = len(lines)
+        for index in range(marker_index + 1, end_index):
+            if SECTION_STOP_RE.match(clean_markdown_text(lines[index])):
+                end_index = index
+                break
+        section_lines = lines[marker_index + 1:end_index]
+        raw_candidates, anchors_found = raw_markdown_important_link_candidates(
+            section_lines, article_url, references
+        )
+        accepted, rejected = evaluate_important_link_candidates(raw_candidates)
         section_options.append({
             "accepted": accepted,
             "rejected": rejected,
@@ -396,29 +636,56 @@ def extract_important_links(html: str, article_url: str):
 def enrich_item_with_important_links(item):
     enriched = dict(item)
     url = enriched["url"]
-    html, fetch_status = fetch_source_page(url)
+    fetch_result = fetch_source_page(url)
+    fetch_status = fetch_result["source_fetch_status"]
     enriched["source_fetch_status"] = fetch_status
     enriched["important_links"] = []
     enriched["important_links_count"] = 0
 
-    if html is None:
-        print(f"[important-links] url={url} fetch={fetch_status} rows=0")
+    print(
+        f"[source-fetch] url={url} direct_status={fetch_result['direct_status']!r} "
+        f"jina_attempted={fetch_result['jina_attempted']} "
+        f"jina_http_status={fetch_result['jina_http_status']} "
+        f"jina_status={fetch_result['jina_status']!r} "
+        f"representation={fetch_result['representation']} final_status={fetch_status}"
+    )
+
+    content = fetch_result["content"]
+    if content is None:
+        print(
+            f"[important-links] url={url} section_found=False anchors=0 "
+            "candidates=0 accepted=0 rejected=0"
+        )
         return enriched
 
     try:
-        rows, diagnostics = extract_important_links(html, url)
+        if fetch_result["representation"].endswith("markdown"):
+            rows, diagnostics = extract_important_links_markdown(content, url)
+        else:
+            rows, diagnostics = extract_important_links(content, url)
     except Exception as error:
         enriched["source_fetch_status"] = f"{fetch_status}_parse_failed_{type(error).__name__.lower()}"
-        print(f"[important-links] url={url} fetch={enriched['source_fetch_status']} rows=0")
+        print(
+            f"[important-links] url={url} section_found=unknown anchors=unknown "
+            f"candidates=unknown accepted=0 rejected=unknown "
+            f"parse_error={type(error).__name__}"
+        )
         return enriched
 
     enriched["important_links"] = rows
     enriched["important_links_count"] = len(rows)
     print(
-        f"[important-links] url={url} fetch={fetch_status} "
+        f"[important-links] url={url} representation={fetch_result['representation']} "
         f"section_found={diagnostics['section_found']} anchors={diagnostics['anchors_found']} "
-        f"candidates={len(diagnostics['candidates'])} rows={len(rows)}"
+        f"candidates={len(diagnostics['candidates'])} accepted={len(rows)} "
+        f"rejected={len(diagnostics['rejected'])}"
     )
+    for accepted in rows:
+        print(
+            "[important-links][accepted] "
+            f"label={accepted['label']!r} text={accepted['text']!r} "
+            f"url={accepted['url']!r}"
+        )
     for rejected in diagnostics["rejected"]:
         print(
             "[important-links][rejected] "
