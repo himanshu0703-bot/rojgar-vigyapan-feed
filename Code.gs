@@ -222,8 +222,10 @@ function applyApprovedUpdatesNow() {
 
 function processSourcePost_(item, config) {
   const source = fetchSourceArticle_(item.url, item.importantLinks, item.sourceFetchStatus, item.importantLinksCount, item.title);
-  const generated = generatePostWithGemini_(source, item.label, config);
-  generated.label = item.label;
+  const lifecycleLabel = detectCurrentLifecycleLabel_(source, item.label, item.title);
+  const generated = generatePostWithGemini_(source, lifecycleLabel, config);
+  generated.label = lifecycleLabel;
+  generated.labels = mergeBloggerLabels_([], [lifecycleLabel]);
   generated.html = sanitizeGeneratedHtml_(generated.html, source.allowedUrls);
   generated.html = addDraftMetadata_(generated, item.url) + generated.html;
   validateGeneratedPost_(generated);
@@ -331,6 +333,79 @@ function inferLabelFromUrlOrTitle_(url, title) {
   if (/admission|counselling|counseling/.test(text)) return 'Admission';
   if (/result|merit|score[- ]?card/.test(text)) return 'Result';
   return 'Latest Jobs';
+}
+
+function detectCurrentLifecycleLabel_(source, fallbackLabel, feedTitle) {
+  const titleSignals = [feedTitle, source && source.title, source && source.url];
+  let latestJobsFallback = '';
+  for (let i = 0; i < titleSignals.length; i++) {
+    const titleLabel = lifecycleLabelFromText_(titleSignals[i]);
+    if (titleLabel && titleLabel !== 'Latest Jobs') return titleLabel;
+    if (titleLabel === 'Latest Jobs') latestJobsFallback = titleLabel;
+  }
+
+  const rows = sourceLinkRows_(source && source.links || []);
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const rowLabel = lifecycleLabelFromText_([rows[rowIndex].label, rows[rowIndex].actionText].join(' '));
+    if (rowLabel && rowLabel !== 'Latest Jobs') return rowLabel;
+    if (rowLabel === 'Latest Jobs') latestJobsFallback = rowLabel;
+  }
+
+  const contentLabel = lifecycleLabelFromText_(String(source && source.text || '').slice(0, 3500));
+  if (contentLabel) return contentLabel;
+  return canonicalLifecycleLabel_(fallbackLabel) || latestJobsFallback || 'Latest Jobs';
+}
+
+function lifecycleLabelFromText_(value) {
+  const text = cleanText_(value || '').toLowerCase().replace(/\bsarkari\s+result(?:\.com)?\b/g, ' ');
+  if (!text) return '';
+  if (/\banswer[\s_-]*key\b|\bresponse[\s_-]*sheet\b|\bobjection(?:s|[\s_-]*window)?\b/i.test(text)) return 'Answer Key';
+  if (/\bfinal[\s_-]*result\b|\bresult\b|\bmerit[\s_-]*list\b|\bselection[\s_-]*list\b|\bscore[\s_-]*card\b/i.test(text)) return 'Result';
+  if (/\badmit[\s_-]*card\b|\bhall[\s_-]*ticket\b|\bcall[\s_-]*letter\b|\bexam[\s_-]*city\b|\bcity[\s_-]*intimation\b|\bdv\s*[\/&-]\s*pst\b|\bdocument[\s_-]*verification\b|\bphysical[\s_-]*(?:standard|efficiency)[\s_-]*test\b/i.test(text)) return 'Admit Card';
+  if (/\bentrance[\s_-]*admission\b|\badmission\b|\bcounselling\b|\bcounseling\b/i.test(text)) return 'Admission';
+  if (/\bsyllabus\b|\bexam[\s_-]*pattern\b/i.test(text)) return 'Syllabus';
+  if (/\bexam[\s_-]*calendar\b|\bexam[\s_-]*schedule\b/i.test(text)) return 'Exam Calendar';
+  if (/\bnew[\s_-]*recruitment\b|\brecruitment\b|\bvacanc(?:y|ies)\b|\bapply[\s_-]*online\b|\bnotification\b/i.test(text)) return 'Latest Jobs';
+  return '';
+}
+
+function canonicalLifecycleLabel_(value) {
+  const label = cleanText_(value || '').toLowerCase();
+  if (label === 'admit card' || label === 'admitcard') return 'Admit Card';
+  if (label === 'result' || label === 'results') return 'Result';
+  if (label === 'answer key' || label === 'answerkey') return 'Answer Key';
+  if (label === 'admission') return 'Admission';
+  if (label === 'syllabus') return 'Syllabus';
+  if (label === 'exam calendar' || label === 'exam schedule') return 'Exam Calendar';
+  if (label === 'latest jobs' || label === 'latest job' || label === 'job') return 'Latest Jobs';
+  return '';
+}
+
+function mergeBloggerLabels_(existingLabels, addedLabels) {
+  const merged = [];
+  const seen = {};
+
+  function append(values) {
+    const list = Array.isArray(values) ? values : (values ? [values] : []);
+    list.forEach(function (rawLabel) {
+      const original = String(rawLabel || '');
+      const comparison = cleanText_(original);
+      if (!comparison) return;
+      const key = comparison.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      merged.push(original);
+    });
+  }
+
+  append(existingLabels);
+  append(addedLabels);
+  return merged;
+}
+
+function bloggerLabelsForPost_(post) {
+  const labels = mergeBloggerLabels_(post && post.labels || [], [post && post.label || '']);
+  return labels.length ? labels : ['Latest Jobs'];
 }
 
 function fetchSourceArticle_(url, feedImportantLinks, sourceFetchStatus, declaredImportantLinksCount, feedTitle) {
@@ -1214,7 +1289,7 @@ function insertBloggerDraft_(post, config) {
     blog: { id: String(blogId) },
     title: post.title,
     content: post.html,
-    labels: [post.label]
+    labels: bloggerLabelsForPost_(post)
   };
 
   const response = googleFetch_(endpoint, {
@@ -1264,8 +1339,16 @@ function checkTrackedSourceUpdates_(registry, config, discoveredItems) {
       if (currentHash === entry.sourceHash || currentHash === entry.candidateHash) continue;
 
       const original = getBloggerPost_(entry.bloggerPostId, config);
-      const generated = generatePostWithGemini_(source, entry.label, config, original);
-      generated.label = entry.label;
+      const updateLabel = detectCurrentLifecycleLabel_(source, entry.label, entry.sourceTitle || '');
+      const preservedLabels = mergeBloggerLabels_(
+        original.labels || [],
+        entry.labels || [entry.label]
+      );
+      const pendingLabels = mergeBloggerLabels_(preservedLabels, entry.pendingLabels || []);
+      const mergedLabels = mergeBloggerLabels_(pendingLabels, [updateLabel]);
+      const generated = generatePostWithGemini_(source, updateLabel, config, original);
+      generated.label = updateLabel;
+      generated.labels = mergedLabels;
       generated.html = sanitizeGeneratedHtml_(generated.html, source.allowedUrls);
       generated.html = addDraftMetadata_(generated, sourceUrl) + generated.html;
       validateGeneratedPost_(generated);
@@ -1273,6 +1356,7 @@ function checkTrackedSourceUpdates_(registry, config, discoveredItems) {
       const reviewPost = upsertReviewDraft_(entry, generated, currentHash, config);
       entry.reviewDraftId = String(reviewPost.id);
       entry.candidateHash = currentHash;
+      entry.pendingLabels = mergedLabels;
       entry.lastChangeDetectedAt = new Date().toISOString();
       Logger.log('Update review draft ready: %s', reviewPost.url || reviewPost.id);
     } catch (error) {
@@ -1291,7 +1375,7 @@ function upsertReviewDraft_(entry, generated, candidateHash, config) {
     blog: { id: String(getBlogId_(config.blogUrl)) },
     title: reviewTitle,
     content: reviewHtml,
-    labels: [entry.label]
+    labels: bloggerLabelsForPost_(generated)
   };
 
   if (entry.reviewDraftId) {
@@ -1309,7 +1393,8 @@ function upsertReviewDraft_(entry, generated, candidateHash, config) {
   return insertBloggerDraft_({
     title: reviewTitle,
     html: reviewHtml,
-    label: entry.label
+    label: generated.label,
+    labels: generated.labels
   }, config);
 }
 
@@ -1329,12 +1414,16 @@ function applyApprovedUpdates_(registry, config) {
 
       const cleanTitle = title.slice(RV.APPROVED_PREFIX.length).trim();
       const cleanContent = stripReviewNotice_(review.content || '');
+      const original = getBloggerPost_(entry.bloggerPostId, config);
+      const existingLabels = mergeBloggerLabels_(original.labels || [], entry.labels || [entry.label]);
+      const pendingLabels = mergeBloggerLabels_(existingLabels, entry.pendingLabels || []);
+      const appliedLabels = mergeBloggerLabels_(pendingLabels, review.labels || []);
       const updatedOriginal = updateBloggerPost_(entry.bloggerPostId, {
         kind: 'blogger#post',
         blog: { id: String(getBlogId_(config.blogUrl)) },
         title: cleanTitle,
         content: cleanContent,
-        labels: [entry.label]
+        labels: appliedLabels
       }, config);
 
       updateBloggerPost_(entry.reviewDraftId, {
@@ -1342,12 +1431,14 @@ function applyApprovedUpdates_(registry, config) {
         blog: { id: String(getBlogId_(config.blogUrl)) },
         title: RV.APPLIED_PREFIX + cleanTitle,
         content: review.content,
-        labels: [entry.label]
+        labels: mergeBloggerLabels_(review.labels || [], appliedLabels)
       }, config);
 
       entry.sourceHash = entry.candidateHash;
       entry.candidateHash = '';
       entry.reviewDraftId = '';
+      entry.labels = appliedLabels;
+      entry.pendingLabels = [];
       entry.lastAppliedAt = new Date().toISOString();
       Logger.log('Original Blogger post updated: %s', updatedOriginal.url || updatedOriginal.id);
     } catch (error) {
@@ -1392,10 +1483,13 @@ function stripReviewNotice_(html) {
 }
 
 function createRegistryEntry_(item, result) {
+  const generatedLabel = result.generated && result.generated.label || item.label;
+  const generatedLabels = mergeBloggerLabels_(result.generated && result.generated.labels || [], [generatedLabel]);
   return {
     sourceUrl: item.url,
     bloggerPostId: String(result.bloggerPost.id),
-    label: item.label,
+    label: generatedLabel,
+    labels: generatedLabels,
     sourceTitle: item.title || '',
     importantLinks: sourceLinkRows_(item.importantLinks || []),
     importantLinksCount: Number(item.importantLinksCount || 0),
