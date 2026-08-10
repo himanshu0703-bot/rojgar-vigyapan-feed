@@ -1052,7 +1052,7 @@ function buildLockedRojgarHtml_(post, source) {
 
   html += '<!-- RV_IMPORTANT_LINKS_START --><h2>Important Links</h2><div class="rv-links-list">';
   groupedLinks.forEach(function(group){
-    html += '<div class="rv-link-row"><div class="rv-link-label">'+escapeHtml_(group.label)+'</div><div class="rv-link-action">';
+    html += '<div class="rv-link-row"><div class="rv-link-label">'+escapeHtml_(sanitizeImportantLinkDisplayLabel_(group.label))+'</div><div class="rv-link-action">';
     group.links.forEach(function(link){
       html += '<a class="rv-pink-btn" href="'+escapeHtml_(link.url)+'" rel="nofollow noopener" target="_blank">'+escapeHtml_(link.actionText)+'</a>';
     });
@@ -1084,6 +1084,12 @@ function groupConsecutiveSourceLinks_(linkRows) {
     groups.push({ label: row.label, links: [row] });
   });
   return groups;
+}
+
+function sanitizeImportantLinkDisplayLabel_(value) {
+  return String(value || '')
+    .replace(/^[ \t]*#+[ \t]*/, '')
+    .replace(/[ \t]*#+[ \t]*$/, '');
 }
 
 function isGeneratedImportantLinksHeading_(value) {
