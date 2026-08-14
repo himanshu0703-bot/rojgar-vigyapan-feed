@@ -1,6 +1,6 @@
 {
   "version": "4.3",
-  "generated_at": "2026-08-14T16:08:15.446330+00:00",
+  "generated_at": "2026-08-14T19:34:17.072803+00:00",
   "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions; source Important Links extracted by collector.py",
   "items": [
     {
@@ -8,7 +8,7 @@
       "title": "UP Police Result",
       "label": "Latest Jobs",
       "position": 0,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -134,7 +134,7 @@
       "title": "job with the IAS/IFS",
       "label": "Latest Jobs",
       "position": 1,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -261,37 +261,11 @@
       "important_links_count": 24
     },
     {
-      "url": "https://www.sarkariresult.com/2026/upeida-various-post-aug26/",
-      "title": "[4] URL Source:",
-      "label": "Latest Jobs",
-      "position": 2,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://sewayojan.up.nic.in/IEP/Login.aspx"
-        },
-        {
-          "label": "Download Vacancy Details##",
-          "text": "Click Here",
-          "url": "https://doc.sarkariresults.org.in/UPEIDA_Jobs_August2026.pdf"
-        },
-        {
-          "label": "Official Website##",
-          "text": "UP Rojgar Sangam",
-          "url": "https://sewayojan.up.nic.in/"
-        }
-      ],
-      "important_links_count": 3
-    },
-    {
       "url": "https://www.sarkariresult.com/2026/isro-various-post-jul26/",
       "title": "[5] URL Source:",
       "label": "Latest Jobs",
-      "position": 3,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 2,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -324,10 +298,10 @@
     },
     {
       "url": "https://www.sarkariresult.com/2026/icsi-executive-assistant-july26/",
-      "title": "[8] URL Source:",
+      "title": "[6] URL Source:",
       "label": "Latest Jobs",
-      "position": 4,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 3,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -349,11 +323,37 @@
       "important_links_count": 3
     },
     {
+      "url": "https://www.sarkariresult.com/2026/upeida-various-post-aug26/",
+      "title": "[8] URL Source:",
+      "label": "Latest Jobs",
+      "position": 4,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://sewayojan.up.nic.in/IEP/Login.aspx"
+        },
+        {
+          "label": "Download Vacancy Details##",
+          "text": "Click Here",
+          "url": "https://doc.sarkariresults.org.in/UPEIDA_Jobs_August2026.pdf"
+        },
+        {
+          "label": "Official Website##",
+          "text": "UP Rojgar Sangam",
+          "url": "https://sewayojan.up.nic.in/"
+        }
+      ],
+      "important_links_count": 3
+    },
+    {
       "url": "https://www.sarkariresult.com/2026/up-kaushal-vikas-mission-aug26/",
-      "title": "[9] URL Source:",
+      "title": "[10] URL Source:",
       "label": "Latest Jobs",
       "position": 5,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -379,7 +379,7 @@
       "title": "[5] URL Source:",
       "label": "Result",
       "position": 2,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -435,7 +435,7 @@
       "title": "[Jharkhand Teacher Eligibility Test 2026](",
       "label": "Result",
       "position": 3,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -481,7 +481,7 @@
       "title": "[ UPGNM Entrance Exam UPGET Admissions 2026 ](",
       "label": "Result",
       "position": 4,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -567,7 +567,7 @@
       "title": "[ NTA JIPMAT Admissions 2026 ](",
       "label": "Result",
       "position": 5,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -628,7 +628,7 @@
       "title": "[RBI Officer Grade B Recruitment 2026](",
       "label": "Result",
       "position": 6,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -685,466 +685,67 @@
       "important_links_count": 10
     },
     {
-      "url": "https://www.sarkariresult.com/2026/jee-advanced-2026/",
-      "title": "[10] URL Source:",
+      "url": "https://www.sarkariresult.com/2026/updeled-admissions-2/",
+      "title": "[6] URL Source:",
       "label": "Result",
       "position": 7,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
-          "label": "Download Result##",
+          "label": "Download Rank Card##",
           "text": "Click Here",
-          "url": "https://cdata.jeeadv.ac.in/result2026/"
+          "url": "https://updeled.gov.in/Knowrank/rank.aspx"
         },
         {
-          "label": "for AAT Registration##",
+          "label": "How To Check Rank Card (Hindi Video)##",
+          "text": "Version-1",
+          "url": "https://youtu.be/hqe_DKgMQa0"
+        },
+        {
+          "label": "How To Check Rank Card (Hindi Video)##",
+          "text": "Version-2",
+          "url": "https://youtu.be/jcgJd-B8i4A"
+        },
+        {
+          "label": "For Online Counselling##",
           "text": "Click Here",
-          "url": "https://cportal.jeeadv.ac.in/"
+          "url": "https://updeled.gov.in/DefaultDELED.aspx"
         },
         {
-          "label": "Download Answer Key##",
-          "text": "Paper I",
-          "url": "https://jeeadv.ac.in/documents/p1_provisional_keys.pdf"
-        },
-        {
-          "label": "Download Answer Key##",
-          "text": "Paper II",
-          "url": "https://jeeadv.ac.in/documents/p2_provisional_keys.pdf"
-        },
-        {
-          "label": "For Answer Key Objection##",
-          "text": "Server I",
-          "url": "https://cportal.jeeadv.ac.in/"
-        },
-        {
-          "label": "For Answer Key Objection##",
-          "text": "Server II",
-          "url": "https://candidate-portal.jeeadv.ac.in/"
-        },
-        {
-          "label": "Download Candidate Responses##",
-          "text": "Server I",
-          "url": "https://cportal.jeeadv.ac.in/"
-        },
-        {
-          "label": "Download Candidate Responses##",
-          "text": "Server II",
-          "url": "https://candidate-portal.jeeadv.ac.in/"
-        },
-        {
-          "label": "Download Paper I Question Paper##",
-          "text": "English",
-          "url": "https://jeeadv.ac.in/documents/p1_english.pdf"
-        },
-        {
-          "label": "Download Paper I Question Paper##",
-          "text": "Hindi",
-          "url": "https://jeeadv.ac.in/documents/p1_hindi.pdf"
-        },
-        {
-          "label": "Download Paper II Question Paper##",
-          "text": "English",
-          "url": "https://jeeadv.ac.in/documents/p2_english.pdf"
-        },
-        {
-          "label": "Download Paper II Question Paper##",
-          "text": "Hindi",
-          "url": "https://jeeadv.ac.in/documents/p2_hindi.pdf"
-        },
-        {
-          "label": "Download Admit Card##",
-          "text": "Server I",
-          "url": "https://cdata.jeeadv.ac.in/admit_cards"
-        },
-        {
-          "label": "Download Admit Card##",
-          "text": "Server II",
-          "url": "https://cdata.jeeadv.ac.in/admit_cards_2026.html"
-        },
-        {
-          "label": "How to Download (Video Hindi)##",
+          "label": "Counselling Schedule Notice##",
           "text": "Click Here",
-          "url": "https://youtu.be/TfiP5o3GIro"
+          "url": "https://updeled.gov.in/PDFFile/Press_Release_07082026.pdf"
         },
         {
           "label": "Apply Online##",
           "text": "Click Here",
-          "url": "https://jeeadv.nic.in/Applicant/"
+          "url": "https://updeled.gov.in/Registration/DReghomeD.aspx"
         },
         {
-          "label": "Download Information Brochure##",
+          "label": "Download Date Extended Notice##",
           "text": "Click Here",
-          "url": "https://jeeadv.ac.in/documents/IBEnglish_2026_1.pdf"
+          "url": "https://updeled.gov.in/PDFFile/Press_Release_29072026.pdf"
         },
         {
-          "label": "Download Syllabus##",
+          "label": "Download Short Notification##",
           "text": "Click Here",
-          "url": "https://jeeadv.ac.in/documents/jee-advanced-2026-syllabus.pdf"
+          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/06/updeled2026-compressed.pdf"
         },
         {
           "label": "Official Website##",
-          "text": "JEE Advanced Official Website",
-          "url": "https://jeeadv.ac.in/"
-        },
-        {
-          "label": "Find More Sarkari Result Official Latest Updates",
-          "text": "UPSSSC Teacher Cadre JTC Recruitment 202 6",
-          "url": "https://www.sarkariresult.com/upsssc/upsssc-teacher-03-exam-2026/"
+          "text": "UP DELED Official Website",
+          "url": "https://updeled.gov.in/"
         }
       ],
-      "important_links_count": 20
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/nta-jeemain-session-2/",
-      "title": "All [JEE Mains](",
-      "label": "Result",
-      "position": 8,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Download Paper II Result##",
-          "text": "Result",
-          "url": "https://examinationservices.nic.in/ResultoService26/P2JM26S2/Login"
-        },
-        {
-          "label": "Download Paper II Result##",
-          "text": "Notice",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/05/20260505152853066.pdf"
-        },
-        {
-          "label": "Download Result##",
-          "text": "Server I",
-          "url": "https://cnr.nic.in/ResultDir/P1S2JM26/login"
-        },
-        {
-          "label": "Download Result##",
-          "text": "Server II",
-          "url": "https://jeemain.nta.nic.in/"
-        },
-        {
-          "label": "Download Result Notice##",
-          "text": "Click Here",
-          "url": "https://nta.ac.in/Download/Notice/Notice_20260420194021.pdf"
-        },
-        {
-          "label": "Download Answer Key##",
-          "text": "Click Here",
-          "url": "https://examinationservices.nic.in/jeemainx2026/root/CandidateLogin.aspx?enc=Ei4cajBkK1gZSfgr53ImFVj34FesvYg1WX45sPjGXBqzPh05kY3XJcgr+08TPD5A"
-        },
-        {
-          "label": "Download Question Paper (Exam 02/04/2026)##",
-          "text": "Shift 1",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/202604091916616339.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 02/04/2026)##",
-          "text": "Shift 2",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409432593766.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 04/04/2026)##",
-          "text": "Shift 1",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/202604092096865379.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 04/04/2026)##",
-          "text": "Shift 2",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409481957146.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 05/04/2026)##",
-          "text": "Shift 1",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409828731207.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 05/04/2026)##",
-          "text": "Shift 2",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409829414602.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 06/04/2026)##",
-          "text": "Shift 1",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/202604092007095665.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 06/04/2026)##",
-          "text": "Shift 2",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409725707538.pdf"
-        },
-        {
-          "label": "Download Question Paper (Exam 08/04/2026)##",
-          "text": "Shift 2",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409932754345.pdf"
-        },
-        {
-          "label": "Download Notice##",
-          "text": "Click Here",
-          "url": "https://nta.ac.in/Download/Notice/Notice_20260408213108.pdf"
-        },
-        {
-          "label": "Download Admit Card##",
-          "text": "Click Here",
-          "url": "https://examinationservices.nic.in/AdmitCardService/AdmitCardJEE26S2/Login"
-        },
-        {
-          "label": "Check Exam City Details##",
-          "text": "Click Here",
-          "url": "https://examinationservices.nic.in/AdmitCard/AuthForCityJEE26S2/LogIn"
-        },
-        {
-          "label": "Download Exam City Notice##",
-          "text": "Click Here",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/03/202603211564081245.pdf"
-        },
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://examinationservices.nic.in/jeemainx2026/root/home.aspx?enc=WPJ5WSCVWOMNiXoyyomJgDUffqDdG1LTsAPBKFcEC9VCAbchJdrRG5w+4Ch32Wrm"
-        },
-        {
-          "label": "Download Session II Notice##",
-          "text": "Click Here",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/02/20260201612425163.pdf"
-        },
-        {
-          "label": "Download Information Brochure##",
-          "text": "Click Here",
-          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2025/10/202510311145384616.pdf"
-        },
-        {
-          "label": "Download Syllabus##",
-          "text": "JEEMAIN Syllabus 2026",
-          "url": "https://tinyurl.com/d8cp75y8"
-        },
-        {
-          "label": "Official Website##",
-          "text": "JEEMAIN Official Website",
-          "url": "https://jeemain.nta.nic.in/"
-        }
-      ],
-      "important_links_count": 24
-    },
-    {
-      "url": "https://www.sarkariresult.com/upsssc/upsssc-teacher-03-exam-2026/",
-      "title": "[ UPSSSC Teacher Cadre JTC Recruitment 202 6 ](",
-      "label": "Result",
-      "position": 9,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Download Answer Key##",
-          "text": "Notice",
-          "url": "https://upsssc.gov.in//ViewPdf.aspx?lSxP8scDc9qDTBAeQ1JGei0wDhRk1oIWVCukmXikakg="
-        },
-        {
-          "label": "Download Answer Key##",
-          "text": "Question Paper with Answer Key",
-          "url": "https://drive.google.com/file/d/1dyH0Np0lhGTDt-cAZIP1Zo54dNsT-6fA/view"
-        },
-        {
-          "label": "Download Admit Card##",
-          "text": "Click Here",
-          "url": "https://upsssc.gov.in/upssscadmitcard/admitCard.aspx?ID=MAIN"
-        },
-        {
-          "label": "Check Exam City Details##",
-          "text": "Click Here",
-          "url": "https://upsssc.gov.in/upssscadvdistinti/AdmitCard_wc.aspx?ID=MAIN&L=ac"
-        },
-        {
-          "label": "Download Exam City Notice##",
-          "text": "Click Here",
-          "url": "https://upsssc.gov.in//ViewPdf.aspx?+s1frZb10v+Ys9ZTixAjE8ONhoRXFdiNC7IfAEFBo84="
-        },
-        {
-          "label": "Mains Exam Fee Payment##",
-          "text": "Click Here",
-          "url": "https://upsssc.gov.in/Interface/Authentication.aspx?NO/WElvPxNJJ/MszfbTUoiya6+j+60nloRK/wJ+Hma/peo+LypGARxykN88mZ0GWnpIBcPHGPx6XKnMmy76dwCXeE3KYnOjOH3riGr1fN9P9B2Efupj9zX0CKJSMG6ToGn9MH0ABA3Sd9Ni7A20mRA=="
-        },
-        {
-          "label": "Mains Exam Fee Payment Notice##",
-          "text": "Click Here",
-          "url": "https://upsssc.gov.in/ViewPdf.aspx?A3uswTZow5EjlfDwISU2e5myP79IhD1BV2JNdUvznIc="
-        },
-        {
-          "label": "Download Eligibility Result##",
-          "text": "Click Here",
-          "url": "https://upsssc.gov.in//ResultsDire.aspx"
-        },
-        {
-          "label": "Download Eligibility Result Notice##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/06/UPSSSC_EligibilityResult_JTC.pdf"
-        },
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://upsssc.gov.in//AllNotifications.aspx"
-        },
-        {
-          "label": "Download Notification##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/upload/UPSSSC_03_Exam_2026_Notification.pdf"
-        },
-        {
-          "label": "Official Website##",
-          "text": "UPSSSC Official Website",
-          "url": "https://upsssc.gov.in/"
-        }
-      ],
-      "important_links_count": 12
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/uptet-2026/",
-      "title": "[UP TET Online Form 2026](",
-      "label": "Result",
-      "position": 10,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Download Answer Key##",
-          "text": "Click Here",
-          "url": "https://www.upessc.net/tetquestionChallenge/Login.aspx"
-        },
-        {
-          "label": "How to Check Answer Key (Video Hindi)##",
-          "text": "Click Here",
-          "url": "https://youtu.be/1I_nCa4zuUo"
-        },
-        {
-          "label": "Download Answer Key Notice##",
-          "text": "Click Here",
-          "url": "https://upessc.up.gov.in/Notice/c95b-7ab1-41a0-498e-f61d.pdf"
-        },
-        {
-          "label": "Download Admit Card##",
-          "text": "Click Here",
-          "url": "https://admitcards.upessc.org/"
-        },
-        {
-          "label": "Check Exam City Details##",
-          "text": "Click Here",
-          "url": "https://admitcards.upessc.org/"
-        },
-        {
-          "label": "How to Check Exam City (Video Hindi) Version II##",
-          "text": "Click Here",
-          "url": "https://tinyurl.com/2m24y2cs"
-        },
-        {
-          "label": "Download Exam City Notice##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/06/uptet_exam_city_Notice_20269c8e-14b0-4277-4524-50a4.pdf"
-        },
-        {
-          "label": "For Correction / Edit Form##",
-          "text": "Click Here",
-          "url": "https://uptet.upessc.org/otr/"
-        },
-        {
-          "label": "Apply Online (OTR)##",
-          "text": "Click Here",
-          "url": "https://uptet.upessc.org/otr/"
-        },
-        {
-          "label": "How to UPTET OTR & Fill Form (Video Hindi)##",
-          "text": "Click Here",
-          "url": "https://youtu.be/lYGEMnjN7Eo"
-        },
-        {
-          "label": "Download UPTET 2026 Date Extended Notice##",
-          "text": "Click Here",
-          "url": "https://upessc.up.gov.in/Notice/4489-6f23-4bc7-11da-0c47.pdf"
-        },
-        {
-          "label": "Download UPTET 2026 Corrigendum Notice##",
-          "text": "Click Here",
-          "url": "https://upessc.up.gov.in/Notice/d3ef-c6b3-4754-5de6-7055.pdf"
-        },
-        {
-          "label": "Download UPTET 2026 Notification##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/upload/UPTET_2026_Notification_SR.pdf"
-        },
-        {
-          "label": "Download UPTET 2026 Syllabus##",
-          "text": "Primary",
-          "url": "https://www.sarkariresult.com/upload/UPTET_2026_Primary_Syllabus_SarkariResult_Com_compressed.pdf"
-        },
-        {
-          "label": "Download UPTET 2026 Syllabus##",
-          "text": "Junior",
-          "url": "https://www.sarkariresult.com/upload/UPTET_2026_Junior_Level_Syllabus_compressed.pdf"
-        },
-        {
-          "label": "Download UPTET 2026 Exam Date##",
-          "text": "Click Here",
-          "url": "https://www.upessc.up.gov.in/Notice/d5e5-9cac-45aa-aa75-e78b.pdf"
-        },
-        {
-          "label": "UPTET Official Website##",
-          "text": "Click Here",
-          "url": "https://upessc.up.gov.in/"
-        }
-      ],
-      "important_links_count": 17
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/upcisb-various-post-mar26/",
-      "title": "[UPCISB UP Cooperative Bank Various Post 2026](",
-      "label": "Result",
-      "position": 11,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Download Postponed Notice##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/07/NoticeBoard-2.pdf"
-        },
-        {
-          "label": "Download Exam Notice##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/03/up_cooperative_bank-1.pdf"
-        },
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://ibpsreg.ibps.in/upcisbfeb26/"
-        },
-        {
-          "label": "How to Fill Form (Video Hindi)##",
-          "text": "Click Here",
-          "url": "https://youtu.be/kjPaRPD82M8"
-        },
-        {
-          "label": "Download Notification##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/upload/Sarkari_Result_A.1_S.R_2026_English.pdf"
-        },
-        {
-          "label": "Download Short Notice##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/upload/Sarkari%20Result%20UP_Cooperative_Mar26.pdf"
-        },
-        {
-          "label": "Official Website##",
-          "text": "UPCISB Official Website",
-          "url": "https://upcisb.upsdc.gov.in/"
-        }
-      ],
-      "important_links_count": 7
+      "important_links_count": 9
     },
     {
       "url": "https://www.sarkariresult.com/bank/sbi-apprentices-2026/",
       "title": "State Bank of India",
       "label": "Admit Card",
       "position": 0,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1195,7 +796,7 @@
       "title": "[2] URL Source:",
       "label": "Admit Card",
       "position": 1,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1436,7 +1037,7 @@
       "title": "[5] URL Source:",
       "label": "Admit Card",
       "position": 2,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1472,7 +1073,7 @@
       "title": "[6] URL Source:",
       "label": "Admit Card",
       "position": 3,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1553,7 +1154,7 @@
       "title": "[7] URL Source:",
       "label": "Admit Card",
       "position": 4,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1664,7 +1265,7 @@
       "title": "[8] URL Source:",
       "label": "Admit Card",
       "position": 5,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1710,7 +1311,7 @@
       "title": "[9] URL Source:",
       "label": "Admit Card",
       "position": 6,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1771,8 +1372,8 @@
       "title": "More",
       "label": "Answer Key",
       "position": 2,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_12266",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_12028",
       "important_links": [],
       "important_links_count": 0
     },
@@ -1781,7 +1382,7 @@
       "title": "UPSSSC Various Post Online Form 2026 Through PET 2025",
       "label": "Answer Key",
       "position": 3,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1808,11 +1409,62 @@
       "important_links_count": 4
     },
     {
+      "url": "https://www.sarkariresult.com/2026/delhi-hc-hjs-july26/",
+      "title": "Delhi High Court Higher Judicial Service HJS Result 2026",
+      "label": "Answer Key",
+      "position": 4,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Download Result##",
+          "text": "Click Here",
+          "url": "https://delhihighcourt.nic.in/files/2026-08/recuritment/upload_shortlisted_notice.pdf"
+        },
+        {
+          "label": "Download Answer Key##",
+          "text": "Click Here",
+          "url": "https://delhihighcourt.nic.in/files/2026-07/recuritment/notice_of_dhjs.pdf"
+        },
+        {
+          "label": "Download Answer Key Notice##",
+          "text": "Click Here",
+          "url": "https://delhihighcourt.nic.in/files/2026-07/recuritment/answer_key_dhjs.pdf"
+        },
+        {
+          "label": "Admit Card##",
+          "text": "Click Here",
+          "url": "https://applycareer.co.in/dhc/highcourt2026dhjse/DHC_DHJSE26AdmitCard.aspx"
+        },
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://applycareer.co.in/DHC/HighCourt2026DHJSE/"
+        },
+        {
+          "label": "Download Syllabus##",
+          "text": "Click Here",
+          "url": "https://delhihighcourt.nic.in/files/2026-07/recuritment/important_instructions_dhjs-2026_0.pdf"
+        },
+        {
+          "label": "Download Notification##",
+          "text": "Click Here",
+          "url": "https://delhihighcourt.nic.in/files/2026-07/recuritment/adv-eng_dhjs-2026.pdf"
+        },
+        {
+          "label": "Official Website##",
+          "text": "DelhI High Court Official Website",
+          "url": "https://delhihighcourt.nic.in/web/job-openings"
+        }
+      ],
+      "important_links_count": 8
+    },
+    {
       "url": "https://www.sarkariresult.com/upsssc/upsssc-lower-07-exam-2026/",
       "title": "UP UPSSSC Lower PCS Mains Exam City 2026",
       "label": "Answer Key",
-      "position": 4,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 5,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1907,8 +1559,8 @@
       "url": "https://www.sarkariresult.com/2027/gate-2027/",
       "title": "IIT GATE 2027 Online Form | Information Brochure",
       "label": "Answer Key",
-      "position": 5,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 6,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1938,8 +1590,8 @@
       "url": "https://www.sarkariresult.com/2026/icf-chennai-apprentices-202/",
       "title": "Integral Coach Factory ICF Apprentices Online Form 2026 for 1010 Post",
       "label": "Answer Key",
-      "position": 6,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 7,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -1969,8 +1621,8 @@
       "url": "https://www.sarkariresult.com/upsssc/upsssc-technical-06-exam-2026/",
       "title": "UPSSSC Technical Assistant Group C AGTA Answer key Objection 2026",
       "label": "Answer Key",
-      "position": 7,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 8,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2060,8 +1712,8 @@
       "url": "https://www.sarkariresult.com/upsssc/upsssc-aa-auditor-03-exam-2024/",
       "title": "UPSSSC Assistant Accountant, Auditor 2024 Result 2026",
       "label": "Answer Key",
-      "position": 8,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 9,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2146,8 +1798,8 @@
       "url": "https://www.sarkariresult.com/2026/uppsc-a3-e1-2026-august/",
       "title": "UPPSC Architectural Assistant and Other Post Online Form 2026 for 37 Post",
       "label": "Answer Key",
-      "position": 9,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 10,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2187,8 +1839,8 @@
       "url": "https://www.sarkariresult.com/rpsc/rssb-computer-instructor-07-2026/",
       "title": "Rajasthan RSSB Computer Instructor Exam Schedule Notice 2026",
       "label": "Answer Key",
-      "position": 10,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 11,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2218,8 +1870,8 @@
       "url": "https://www.sarkariresult.com/2026/bsnl-jto-2026/",
       "title": "BSNL Junior Telecom Officer JTO Exam City 2026",
       "label": "Answer Key",
-      "position": 11,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 12,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2261,43 +1913,12 @@
       "important_links_count": 7
     },
     {
-      "url": "https://www.sarkariresult.com/railway/rcf-apprentices-aug26/",
-      "title": "Railway RCF Kapurthala Apprentices Online Form 2026 for 734 Post",
-      "label": "Answer Key",
-      "position": 12,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://pardarsy.railnet.gov.in/apprentice-2026/login"
-        },
-        {
-          "label": "How To Fill Form (Hindi Video)##",
-          "text": "Watch Video",
-          "url": "https://youtu.be/ivpXfnVWCB0"
-        },
-        {
-          "label": "Download Notification##",
-          "text": "Click Here",
-          "url": "https://rcf.indianrailways.gov.in/uploads/files/act-app/not-act-app-2026.pdf"
-        },
-        {
-          "label": "Official Website##",
-          "text": "Indian Railway Official Website",
-          "url": "https://indianrailways.gov.in/"
-        }
-      ],
-      "important_links_count": 4
-    },
-    {
       "url": "https://www.sarkariresult.com/author/old_sr2026/page/2/",
       "title": "Older posts",
       "label": "Answer Key",
       "position": 13,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_12422",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_12373",
       "important_links": [],
       "important_links_count": 0
     },
@@ -2306,8 +1927,8 @@
       "title": "Page 47",
       "label": "Answer Key",
       "position": 14,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_10056",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_10278",
       "important_links": [],
       "important_links_count": 0
     },
@@ -2316,7 +1937,7 @@
       "title": "[4] URL Source:",
       "label": "Answer Key",
       "position": 15,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2347,7 +1968,7 @@
       "title": "[Indian Navy INCET 01/2023 Recruitment 2023](",
       "label": "Answer Key",
       "position": 16,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2398,7 +2019,7 @@
       "title": "[ SSC Constable CISF CRPF SSB ITBP AR Recruitment 2023 ](",
       "label": "Answer Key",
       "position": 17,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2544,7 +2165,7 @@
       "title": "[ UKSSSC 10+2 Intermediate Level Recruitment 2023 ](",
       "label": "Answer Key",
       "position": 18,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2575,7 +2196,7 @@
       "title": "[ Delhi DSSSB WPO WO Advt No 04/2023 Recruitment 2023 ](",
       "label": "Answer Key",
       "position": 19,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2602,11 +2223,466 @@
       "important_links_count": 4
     },
     {
+      "url": "https://www.sarkariresult.com/2026/jee-advanced-2026/",
+      "title": "[5] URL Source:",
+      "label": "Answer Key",
+      "position": 20,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Download Result##",
+          "text": "Click Here",
+          "url": "https://cdata.jeeadv.ac.in/result2026/"
+        },
+        {
+          "label": "for AAT Registration##",
+          "text": "Click Here",
+          "url": "https://cportal.jeeadv.ac.in/"
+        },
+        {
+          "label": "Download Answer Key##",
+          "text": "Paper I",
+          "url": "https://jeeadv.ac.in/documents/p1_provisional_keys.pdf"
+        },
+        {
+          "label": "Download Answer Key##",
+          "text": "Paper II",
+          "url": "https://jeeadv.ac.in/documents/p2_provisional_keys.pdf"
+        },
+        {
+          "label": "For Answer Key Objection##",
+          "text": "Server I",
+          "url": "https://cportal.jeeadv.ac.in/"
+        },
+        {
+          "label": "For Answer Key Objection##",
+          "text": "Server II",
+          "url": "https://candidate-portal.jeeadv.ac.in/"
+        },
+        {
+          "label": "Download Candidate Responses##",
+          "text": "Server I",
+          "url": "https://cportal.jeeadv.ac.in/"
+        },
+        {
+          "label": "Download Candidate Responses##",
+          "text": "Server II",
+          "url": "https://candidate-portal.jeeadv.ac.in/"
+        },
+        {
+          "label": "Download Paper I Question Paper##",
+          "text": "English",
+          "url": "https://jeeadv.ac.in/documents/p1_english.pdf"
+        },
+        {
+          "label": "Download Paper I Question Paper##",
+          "text": "Hindi",
+          "url": "https://jeeadv.ac.in/documents/p1_hindi.pdf"
+        },
+        {
+          "label": "Download Paper II Question Paper##",
+          "text": "English",
+          "url": "https://jeeadv.ac.in/documents/p2_english.pdf"
+        },
+        {
+          "label": "Download Paper II Question Paper##",
+          "text": "Hindi",
+          "url": "https://jeeadv.ac.in/documents/p2_hindi.pdf"
+        },
+        {
+          "label": "Download Admit Card##",
+          "text": "Server I",
+          "url": "https://cdata.jeeadv.ac.in/admit_cards"
+        },
+        {
+          "label": "Download Admit Card##",
+          "text": "Server II",
+          "url": "https://cdata.jeeadv.ac.in/admit_cards_2026.html"
+        },
+        {
+          "label": "How to Download (Video Hindi)##",
+          "text": "Click Here",
+          "url": "https://youtu.be/TfiP5o3GIro"
+        },
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://jeeadv.nic.in/Applicant/"
+        },
+        {
+          "label": "Download Information Brochure##",
+          "text": "Click Here",
+          "url": "https://jeeadv.ac.in/documents/IBEnglish_2026_1.pdf"
+        },
+        {
+          "label": "Download Syllabus##",
+          "text": "Click Here",
+          "url": "https://jeeadv.ac.in/documents/jee-advanced-2026-syllabus.pdf"
+        },
+        {
+          "label": "Official Website##",
+          "text": "JEE Advanced Official Website",
+          "url": "https://jeeadv.ac.in/"
+        },
+        {
+          "label": "Find More Sarkari Result Official Latest Updates",
+          "text": "UPSSSC Teacher Cadre JTC Recruitment 202 6",
+          "url": "https://www.sarkariresult.com/upsssc/upsssc-teacher-03-exam-2026/"
+        }
+      ],
+      "important_links_count": 20
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/nta-jeemain-session-2/",
+      "title": "All [JEE Mains](",
+      "label": "Answer Key",
+      "position": 21,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Download Paper II Result##",
+          "text": "Result",
+          "url": "https://examinationservices.nic.in/ResultoService26/P2JM26S2/Login"
+        },
+        {
+          "label": "Download Paper II Result##",
+          "text": "Notice",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/05/20260505152853066.pdf"
+        },
+        {
+          "label": "Download Result##",
+          "text": "Server I",
+          "url": "https://cnr.nic.in/ResultDir/P1S2JM26/login"
+        },
+        {
+          "label": "Download Result##",
+          "text": "Server II",
+          "url": "https://jeemain.nta.nic.in/"
+        },
+        {
+          "label": "Download Result Notice##",
+          "text": "Click Here",
+          "url": "https://nta.ac.in/Download/Notice/Notice_20260420194021.pdf"
+        },
+        {
+          "label": "Download Answer Key##",
+          "text": "Click Here",
+          "url": "https://examinationservices.nic.in/jeemainx2026/root/CandidateLogin.aspx?enc=Ei4cajBkK1gZSfgr53ImFVj34FesvYg1WX45sPjGXBqzPh05kY3XJcgr+08TPD5A"
+        },
+        {
+          "label": "Download Question Paper (Exam 02/04/2026)##",
+          "text": "Shift 1",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/202604091916616339.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 02/04/2026)##",
+          "text": "Shift 2",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409432593766.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 04/04/2026)##",
+          "text": "Shift 1",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/202604092096865379.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 04/04/2026)##",
+          "text": "Shift 2",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409481957146.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 05/04/2026)##",
+          "text": "Shift 1",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409828731207.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 05/04/2026)##",
+          "text": "Shift 2",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409829414602.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 06/04/2026)##",
+          "text": "Shift 1",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/202604092007095665.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 06/04/2026)##",
+          "text": "Shift 2",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409725707538.pdf"
+        },
+        {
+          "label": "Download Question Paper (Exam 08/04/2026)##",
+          "text": "Shift 2",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/20260409932754345.pdf"
+        },
+        {
+          "label": "Download Notice##",
+          "text": "Click Here",
+          "url": "https://nta.ac.in/Download/Notice/Notice_20260408213108.pdf"
+        },
+        {
+          "label": "Download Admit Card##",
+          "text": "Click Here",
+          "url": "https://examinationservices.nic.in/AdmitCardService/AdmitCardJEE26S2/Login"
+        },
+        {
+          "label": "Check Exam City Details##",
+          "text": "Click Here",
+          "url": "https://examinationservices.nic.in/AdmitCard/AuthForCityJEE26S2/LogIn"
+        },
+        {
+          "label": "Download Exam City Notice##",
+          "text": "Click Here",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/03/202603211564081245.pdf"
+        },
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://examinationservices.nic.in/jeemainx2026/root/home.aspx?enc=WPJ5WSCVWOMNiXoyyomJgDUffqDdG1LTsAPBKFcEC9VCAbchJdrRG5w+4Ch32Wrm"
+        },
+        {
+          "label": "Download Session II Notice##",
+          "text": "Click Here",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/02/20260201612425163.pdf"
+        },
+        {
+          "label": "Download Information Brochure##",
+          "text": "Click Here",
+          "url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2025/10/202510311145384616.pdf"
+        },
+        {
+          "label": "Download Syllabus##",
+          "text": "JEEMAIN Syllabus 2026",
+          "url": "https://tinyurl.com/d8cp75y8"
+        },
+        {
+          "label": "Official Website##",
+          "text": "JEEMAIN Official Website",
+          "url": "https://jeemain.nta.nic.in/"
+        }
+      ],
+      "important_links_count": 24
+    },
+    {
+      "url": "https://www.sarkariresult.com/upsssc/upsssc-teacher-03-exam-2026/",
+      "title": "[ UPSSSC Teacher Cadre JTC Recruitment 202 6 ](",
+      "label": "Answer Key",
+      "position": 22,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Download Answer Key##",
+          "text": "Notice",
+          "url": "https://upsssc.gov.in//ViewPdf.aspx?lSxP8scDc9qDTBAeQ1JGei0wDhRk1oIWVCukmXikakg="
+        },
+        {
+          "label": "Download Answer Key##",
+          "text": "Question Paper with Answer Key",
+          "url": "https://drive.google.com/file/d/1dyH0Np0lhGTDt-cAZIP1Zo54dNsT-6fA/view"
+        },
+        {
+          "label": "Download Admit Card##",
+          "text": "Click Here",
+          "url": "https://upsssc.gov.in/upssscadmitcard/admitCard.aspx?ID=MAIN"
+        },
+        {
+          "label": "Check Exam City Details##",
+          "text": "Click Here",
+          "url": "https://upsssc.gov.in/upssscadvdistinti/AdmitCard_wc.aspx?ID=MAIN&L=ac"
+        },
+        {
+          "label": "Download Exam City Notice##",
+          "text": "Click Here",
+          "url": "https://upsssc.gov.in//ViewPdf.aspx?+s1frZb10v+Ys9ZTixAjE8ONhoRXFdiNC7IfAEFBo84="
+        },
+        {
+          "label": "Mains Exam Fee Payment##",
+          "text": "Click Here",
+          "url": "https://upsssc.gov.in/Interface/Authentication.aspx?NO/WElvPxNJJ/MszfbTUoiya6+j+60nloRK/wJ+Hma/peo+LypGARxykN88mZ0GWnpIBcPHGPx6XKnMmy76dwCXeE3KYnOjOH3riGr1fN9P9B2Efupj9zX0CKJSMG6ToGn9MH0ABA3Sd9Ni7A20mRA=="
+        },
+        {
+          "label": "Mains Exam Fee Payment Notice##",
+          "text": "Click Here",
+          "url": "https://upsssc.gov.in/ViewPdf.aspx?A3uswTZow5EjlfDwISU2e5myP79IhD1BV2JNdUvznIc="
+        },
+        {
+          "label": "Download Eligibility Result##",
+          "text": "Click Here",
+          "url": "https://upsssc.gov.in//ResultsDire.aspx"
+        },
+        {
+          "label": "Download Eligibility Result Notice##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/06/UPSSSC_EligibilityResult_JTC.pdf"
+        },
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://upsssc.gov.in//AllNotifications.aspx"
+        },
+        {
+          "label": "Download Notification##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/upload/UPSSSC_03_Exam_2026_Notification.pdf"
+        },
+        {
+          "label": "Official Website##",
+          "text": "UPSSSC Official Website",
+          "url": "https://upsssc.gov.in/"
+        }
+      ],
+      "important_links_count": 12
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/uptet-2026/",
+      "title": "[UP TET Online Form 2026](",
+      "label": "Answer Key",
+      "position": 23,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Download Answer Key##",
+          "text": "Click Here",
+          "url": "https://www.upessc.net/tetquestionChallenge/Login.aspx"
+        },
+        {
+          "label": "How to Check Answer Key (Video Hindi)##",
+          "text": "Click Here",
+          "url": "https://youtu.be/1I_nCa4zuUo"
+        },
+        {
+          "label": "Download Answer Key Notice##",
+          "text": "Click Here",
+          "url": "https://upessc.up.gov.in/Notice/c95b-7ab1-41a0-498e-f61d.pdf"
+        },
+        {
+          "label": "Download Admit Card##",
+          "text": "Click Here",
+          "url": "https://admitcards.upessc.org/"
+        },
+        {
+          "label": "Check Exam City Details##",
+          "text": "Click Here",
+          "url": "https://admitcards.upessc.org/"
+        },
+        {
+          "label": "How to Check Exam City (Video Hindi) Version II##",
+          "text": "Click Here",
+          "url": "https://tinyurl.com/2m24y2cs"
+        },
+        {
+          "label": "Download Exam City Notice##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/06/uptet_exam_city_Notice_20269c8e-14b0-4277-4524-50a4.pdf"
+        },
+        {
+          "label": "For Correction / Edit Form##",
+          "text": "Click Here",
+          "url": "https://uptet.upessc.org/otr/"
+        },
+        {
+          "label": "Apply Online (OTR)##",
+          "text": "Click Here",
+          "url": "https://uptet.upessc.org/otr/"
+        },
+        {
+          "label": "How to UPTET OTR & Fill Form (Video Hindi)##",
+          "text": "Click Here",
+          "url": "https://youtu.be/lYGEMnjN7Eo"
+        },
+        {
+          "label": "Download UPTET 2026 Date Extended Notice##",
+          "text": "Click Here",
+          "url": "https://upessc.up.gov.in/Notice/4489-6f23-4bc7-11da-0c47.pdf"
+        },
+        {
+          "label": "Download UPTET 2026 Corrigendum Notice##",
+          "text": "Click Here",
+          "url": "https://upessc.up.gov.in/Notice/d3ef-c6b3-4754-5de6-7055.pdf"
+        },
+        {
+          "label": "Download UPTET 2026 Notification##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/upload/UPTET_2026_Notification_SR.pdf"
+        },
+        {
+          "label": "Download UPTET 2026 Syllabus##",
+          "text": "Primary",
+          "url": "https://www.sarkariresult.com/upload/UPTET_2026_Primary_Syllabus_SarkariResult_Com_compressed.pdf"
+        },
+        {
+          "label": "Download UPTET 2026 Syllabus##",
+          "text": "Junior",
+          "url": "https://www.sarkariresult.com/upload/UPTET_2026_Junior_Level_Syllabus_compressed.pdf"
+        },
+        {
+          "label": "Download UPTET 2026 Exam Date##",
+          "text": "Click Here",
+          "url": "https://www.upessc.up.gov.in/Notice/d5e5-9cac-45aa-aa75-e78b.pdf"
+        },
+        {
+          "label": "UPTET Official Website##",
+          "text": "Click Here",
+          "url": "https://upessc.up.gov.in/"
+        }
+      ],
+      "important_links_count": 17
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/upcisb-various-post-mar26/",
+      "title": "[UPCISB UP Cooperative Bank Various Post 2026](",
+      "label": "Answer Key",
+      "position": 25,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Download Postponed Notice##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/07/NoticeBoard-2.pdf"
+        },
+        {
+          "label": "Download Exam Notice##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/03/up_cooperative_bank-1.pdf"
+        },
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://ibpsreg.ibps.in/upcisbfeb26/"
+        },
+        {
+          "label": "How to Fill Form (Video Hindi)##",
+          "text": "Click Here",
+          "url": "https://youtu.be/kjPaRPD82M8"
+        },
+        {
+          "label": "Download Notification##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/upload/Sarkari_Result_A.1_S.R_2026_English.pdf"
+        },
+        {
+          "label": "Download Short Notice##",
+          "text": "Click Here",
+          "url": "https://www.sarkariresult.com/upload/Sarkari%20Result%20UP_Cooperative_Mar26.pdf"
+        },
+        {
+          "label": "Official Website##",
+          "text": "UPCISB Official Website",
+          "url": "https://upcisb.upsdc.gov.in/"
+        }
+      ],
+      "important_links_count": 7
+    },
+    {
       "url": "https://www.sarkariresult.com/2026/bpsc-stenographer-01-2026/",
       "title": "[6] URL Source:",
       "label": "Answer Key",
       "position": 26,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2662,7 +2738,7 @@
       "title": "[7] URL Source:",
       "label": "Answer Key",
       "position": 27,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2783,7 +2859,7 @@
       "title": "Find More UPSSSC Latest Vacancy Through PET 2023 [Click Here](",
       "label": "Answer Key",
       "position": 28,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2809,7 +2885,7 @@
       "title": "[4] URL Source:",
       "label": "Syllabus",
       "position": 0,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2851,47 +2927,11 @@
       "important_links_count": 7
     },
     {
-      "url": "https://www.sarkariresult.com/2026/upcisb-various-post-may26/",
+      "url": "https://www.sarkariresult.com/2025/uppsc-gic-lecturer-2025/",
       "title": "[5] URL Source:",
       "label": "Syllabus",
       "position": 1,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://ibpsreg.ibps.in/upcisbapr26/"
-        },
-        {
-          "label": "How to Fill Form (Video Hindi)##",
-          "text": "Click Here",
-          "url": "https://tinyurl.com/3kjwkxsx"
-        },
-        {
-          "label": "Download Notification##",
-          "text": "Click Here",
-          "url": "https://doc.sarkariresults.org.in/NoticeBoard.pdf"
-        },
-        {
-          "label": "Download Syllabus##",
-          "text": "Click Here",
-          "url": "https://doc.sarkariresults.org.in/SarkariResult.Com_UP_Cooperative_Bank_SyllabusMay26%20(1"
-        },
-        {
-          "label": "Official Website##",
-          "text": "UPCISB Official Website",
-          "url": "https://upcisb.upsdc.gov.in/"
-        }
-      ],
-      "important_links_count": 5
-    },
-    {
-      "url": "https://www.sarkariresult.com/2025/uppsc-gic-lecturer-2025/",
-      "title": "[6] URL Source:",
-      "label": "Syllabus",
-      "position": 2,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -2978,47 +3018,47 @@
       "important_links_count": 16
     },
     {
-      "url": "https://www.sarkariresult.com/2026/hcl-executive-june-2026/",
-      "title": "[7] URL Source:",
+      "url": "https://www.sarkariresult.com/2026/upcisb-various-post-may26/",
+      "title": "[6] URL Source:",
       "label": "Syllabus",
-      "position": 3,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 2,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
           "label": "Apply Online##",
           "text": "Click Here",
-          "url": "https://www.hindustancopper.com/RecruitmentDraft/CandidateLogin/141"
+          "url": "https://ibpsreg.ibps.in/upcisbapr26/"
         },
         {
           "label": "How to Fill Form (Video Hindi)##",
           "text": "Click Here",
-          "url": "https://tinyurl.com/4vy44t94"
+          "url": "https://tinyurl.com/3kjwkxsx"
         },
         {
           "label": "Download Notification##",
           "text": "Click Here",
-          "url": "https://www.hindustancopper.com/Upload/Notice/0-639145466897053750-NoticeFILE.pdf"
+          "url": "https://doc.sarkariresults.org.in/NoticeBoard.pdf"
         },
         {
-          "label": "Download Corrigendum##",
+          "label": "Download Syllabus##",
           "text": "Click Here",
-          "url": "https://www.hindustancopper.com/Upload/Notice/CORRIGENDUM_Notice-639161777660117500.pdf"
+          "url": "https://doc.sarkariresults.org.in/SarkariResult.Com_UP_Cooperative_Bank_SyllabusMay26%20(1"
         },
         {
           "label": "Official Website##",
-          "text": "HCL Official Website",
-          "url": "https://www.hindustancopper.com/"
+          "text": "UPCISB Official Website",
+          "url": "https://upcisb.upsdc.gov.in/"
         }
       ],
       "important_links_count": 5
     },
     {
       "url": "https://www.sarkariresult.com/ssc/ssc-jht-2026/",
-      "title": "[8] URL Source:",
+      "title": "[7] URL Source:",
       "label": "Syllabus",
-      "position": 4,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "position": 3,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -3050,11 +3090,103 @@
       "important_links_count": 5
     },
     {
-      "url": "https://www.sarkariresult.com/2025/drdo-ceptam-11/",
+      "url": "https://www.sarkariresult.com/2026/hcl-executive-june-2026/",
+      "title": "[8] URL Source:",
+      "label": "Syllabus",
+      "position": 4,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://www.hindustancopper.com/RecruitmentDraft/CandidateLogin/141"
+        },
+        {
+          "label": "How to Fill Form (Video Hindi)##",
+          "text": "Click Here",
+          "url": "https://tinyurl.com/4vy44t94"
+        },
+        {
+          "label": "Download Notification##",
+          "text": "Click Here",
+          "url": "https://www.hindustancopper.com/Upload/Notice/0-639145466897053750-NoticeFILE.pdf"
+        },
+        {
+          "label": "Download Corrigendum##",
+          "text": "Click Here",
+          "url": "https://www.hindustancopper.com/Upload/Notice/CORRIGENDUM_Notice-639161777660117500.pdf"
+        },
+        {
+          "label": "Official Website##",
+          "text": "HCL Official Website",
+          "url": "https://www.hindustancopper.com/"
+        }
+      ],
+      "important_links_count": 5
+    },
+    {
+      "url": "https://www.sarkariresult.com/2026/aiims-cre-june-2026/",
       "title": "[9] URL Source:",
       "label": "Syllabus",
       "position": 5,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "ok_jina_api_markdown_http_200",
+      "important_links": [
+        {
+          "label": "Download Result##",
+          "text": "Click Here",
+          "url": "https://www.aiimsexams.ac.in/landingpage/result"
+        },
+        {
+          "label": "Download Admit Card##",
+          "text": "Click Here",
+          "url": "https://aiimsexams.ac.in/advertisement/6a2cdd89be81945a8330d450"
+        },
+        {
+          "label": "Download Revised Exam Notice##",
+          "text": "Click Here",
+          "url": "https://rrpdocuments.aiimsexams.ac.in/1786098641903-816454103.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVRUVRLXWMSLVSAP7%2F20260807%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260807T105941Z&X-Amz-Expires=604800&X-Amz-Signature=be5a7df67844a0edc5b945a4c297f7e152b25fa03bb9b98bc29d3065daaa474d&X-Amz-SignedHeaders=host&response-content-type=application%2Fpdf"
+        },
+        {
+          "label": "AIIMS CRE-5 Check Exam Schedule##",
+          "text": "Click Here",
+          "url": "https://rrpdocuments.aiimsexams.ac.in/1784265336757-399501708.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVRUVRLXWMSLVSAP7%2F20260717%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260717T053502Z&X-Amz-Expires=18000&X-Amz-Signature=5c4fd0f5d6395115fc4212f1aee1e2159c046baa9782ac3a99b22b4bc6912443&X-Amz-SignedHeaders=host&response-content-type=application%2Fpdf"
+        },
+        {
+          "label": "Check Application Status##",
+          "text": "Click Here",
+          "url": "https://www.aiimsexams.ac.in/advertisement/6a2cdd89be81945a8330d450"
+        },
+        {
+          "label": "Download Application Status Notice##",
+          "text": "Click Here",
+          "url": "https://rrpdocuments.aiimsexams.ac.in/1783918559067-437308768.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVRUVRLXWMSLVSAP7%2F20260713%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260713T051144Z&X-Amz-Expires=18000&X-Amz-Signature=35df0b672f887ba359ca272847d2c19fd7a733c4e6e758d297d71480a591740b&X-Amz-SignedHeaders=host&response-content-type=application%2Fpdf"
+        },
+        {
+          "label": "Apply Online##",
+          "text": "Click Here",
+          "url": "https://www.aiimsexams.ac.in/auth/login"
+        },
+        {
+          "label": "Download Notification##",
+          "text": "Click Here",
+          "url": "https://doc.sarkariresults.org.in/AIIMS_CRE_5_Notification_1781360803517-426450330.pdf"
+        },
+        {
+          "label": "Official Website##",
+          "text": "AIIMS Official Website",
+          "url": "https://www.aiimsexams.ac.in/"
+        }
+      ],
+      "important_links_count": 9
+    },
+    {
+      "url": "https://www.sarkariresult.com/2025/drdo-ceptam-11/",
+      "title": "[10] URL Source:",
+      "label": "Syllabus",
+      "position": 6,
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -3126,133 +3258,21 @@
       "important_links_count": 13
     },
     {
-      "url": "https://www.sarkariresult.com/2026/aiims-cre-june-2026/",
-      "title": "[10] URL Source:",
-      "label": "Syllabus",
-      "position": 6,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Download Result##",
-          "text": "Click Here",
-          "url": "https://www.aiimsexams.ac.in/landingpage/result"
-        },
-        {
-          "label": "Download Admit Card##",
-          "text": "Click Here",
-          "url": "https://aiimsexams.ac.in/advertisement/6a2cdd89be81945a8330d450"
-        },
-        {
-          "label": "Download Revised Exam Notice##",
-          "text": "Click Here",
-          "url": "https://rrpdocuments.aiimsexams.ac.in/1786098641903-816454103.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVRUVRLXWMSLVSAP7%2F20260807%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260807T105941Z&X-Amz-Expires=604800&X-Amz-Signature=be5a7df67844a0edc5b945a4c297f7e152b25fa03bb9b98bc29d3065daaa474d&X-Amz-SignedHeaders=host&response-content-type=application%2Fpdf"
-        },
-        {
-          "label": "AIIMS CRE-5 Check Exam Schedule##",
-          "text": "Click Here",
-          "url": "https://rrpdocuments.aiimsexams.ac.in/1784265336757-399501708.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVRUVRLXWMSLVSAP7%2F20260717%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260717T053502Z&X-Amz-Expires=18000&X-Amz-Signature=5c4fd0f5d6395115fc4212f1aee1e2159c046baa9782ac3a99b22b4bc6912443&X-Amz-SignedHeaders=host&response-content-type=application%2Fpdf"
-        },
-        {
-          "label": "Check Application Status##",
-          "text": "Click Here",
-          "url": "https://www.aiimsexams.ac.in/advertisement/6a2cdd89be81945a8330d450"
-        },
-        {
-          "label": "Download Application Status Notice##",
-          "text": "Click Here",
-          "url": "https://rrpdocuments.aiimsexams.ac.in/1783918559067-437308768.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVRUVRLXWMSLVSAP7%2F20260713%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260713T051144Z&X-Amz-Expires=18000&X-Amz-Signature=35df0b672f887ba359ca272847d2c19fd7a733c4e6e758d297d71480a591740b&X-Amz-SignedHeaders=host&response-content-type=application%2Fpdf"
-        },
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://www.aiimsexams.ac.in/auth/login"
-        },
-        {
-          "label": "Download Notification##",
-          "text": "Click Here",
-          "url": "https://doc.sarkariresults.org.in/AIIMS_CRE_5_Notification_1781360803517-426450330.pdf"
-        },
-        {
-          "label": "Official Website##",
-          "text": "AIIMS Official Website",
-          "url": "https://www.aiimsexams.ac.in/"
-        }
-      ],
-      "important_links_count": 9
-    },
-    {
       "url": "https://www.sarkariresult.com/quick-updates/up-cnet-2026-answer-key/",
       "title": "ABVMU",
       "label": "Admission",
       "position": 2,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_58163",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
+      "source_fetch_status": "failed_direct_and_jina_api_http_200_important_links_heading_not_found_bytes_58348",
       "important_links": [],
       "important_links_count": 0
-    },
-    {
-      "url": "https://www.sarkariresult.com/2026/updeled-admissions-2/",
-      "title": "[2] URL Source:",
-      "label": "Admission",
-      "position": 3,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
-      "source_fetch_status": "ok_jina_api_markdown_http_200",
-      "important_links": [
-        {
-          "label": "Download Rank Card##",
-          "text": "Click Here",
-          "url": "https://updeled.gov.in/Knowrank/rank.aspx"
-        },
-        {
-          "label": "How To Check Rank Card (Hindi Video)##",
-          "text": "Version-1",
-          "url": "https://youtu.be/hqe_DKgMQa0"
-        },
-        {
-          "label": "How To Check Rank Card (Hindi Video)##",
-          "text": "Version-2",
-          "url": "https://youtu.be/jcgJd-B8i4A"
-        },
-        {
-          "label": "For Online Counselling##",
-          "text": "Click Here",
-          "url": "https://updeled.gov.in/DefaultDELED.aspx"
-        },
-        {
-          "label": "Counselling Schedule Notice##",
-          "text": "Click Here",
-          "url": "https://updeled.gov.in/PDFFile/Press_Release_07082026.pdf"
-        },
-        {
-          "label": "Apply Online##",
-          "text": "Click Here",
-          "url": "https://updeled.gov.in/Registration/DReghomeD.aspx"
-        },
-        {
-          "label": "Download Date Extended Notice##",
-          "text": "Click Here",
-          "url": "https://updeled.gov.in/PDFFile/Press_Release_29072026.pdf"
-        },
-        {
-          "label": "Download Short Notification##",
-          "text": "Click Here",
-          "url": "https://www.sarkariresult.com/wp-content/uploads/2026/06/updeled2026-compressed.pdf"
-        },
-        {
-          "label": "Official Website##",
-          "text": "UP DELED Official Website",
-          "url": "https://updeled.gov.in/"
-        }
-      ],
-      "important_links_count": 9
     },
     {
       "url": "https://www.sarkariresult.com/2026/abvmu-up-cnet-2026/",
       "title": "[3] URL Source:",
       "label": "Admission",
       "position": 4,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -3323,7 +3343,7 @@
       "title": "[4] URL Source:",
       "label": "Admission",
       "position": 5,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -3364,7 +3384,7 @@
       "title": "[5] URL Source:",
       "label": "Admission",
       "position": 6,
-      "discovered_at": "2026-08-14T16:08:15.446330+00:00",
+      "discovered_at": "2026-08-14T19:34:17.072803+00:00",
       "source_fetch_status": "ok_jina_api_markdown_http_200",
       "important_links": [
         {
@@ -3426,14 +3446,14 @@
       "label": "Latest Jobs",
       "ok": true,
       "count": 6,
-      "bytes": 53824,
+      "bytes": 53826,
       "source": "s.jina.ai"
     },
     {
       "label": "Result",
       "ok": true,
-      "count": 10,
-      "bytes": 41060,
+      "count": 6,
+      "bytes": 40883,
       "source": "s.jina.ai"
     },
     {
@@ -3446,8 +3466,8 @@
     {
       "label": "Answer Key",
       "ok": true,
-      "count": 21,
-      "bytes": 63303,
+      "count": 26,
+      "bytes": 63490,
       "source": "s.jina.ai"
     },
     {
@@ -3460,7 +3480,7 @@
     {
       "label": "Admission",
       "ok": true,
-      "count": 5,
+      "count": 4,
       "bytes": 74432,
       "source": "s.jina.ai"
     }
