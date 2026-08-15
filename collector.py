@@ -1,12 +1,14 @@
 import json
+import hashlib
 import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from html import unescape
 from pathlib import Path
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -15,15 +17,22 @@ try:
 except Exception:
     requests = None
 
-# V4.2: discovery uses authenticated Jina Search for indexed SarkariResult article URLs, then writes feed.json.
-SEARCHES = [
-    ("Latest Jobs", "site:sarkariresult.com Sarkari Result latest job online form vacancy 2026"),
-    ("Result", "site:sarkariresult.com Sarkari Result result declared merit list score card 2026"),
-    ("Admit Card", "site:sarkariresult.com Sarkari Result admit card exam date hall ticket 2026"),
-    ("Answer Key", "site:sarkariresult.com Sarkari Result answer key objection 2026"),
-    ("Syllabus", "site:sarkariresult.com Sarkari Result syllabus exam pattern 2026"),
-    ("Admission", "site:sarkariresult.com Sarkari Result admission online form counselling 2026"),
+# V4.5: visible SarkariResult category order is the primary discovery frontier.
+# Search-engine ranking is deliberately not used for NEW-post detection because
+# an old indexed URL can move upward without being newly published.
+CATEGORIES = [
+    ("Latest Jobs", "https://www.sarkariresult.com/latestjob/"),
+    ("Result", "https://www.sarkariresult.com/result/"),
+    ("Admit Card", "https://www.sarkariresult.com/admitcard/"),
+    ("Answer Key", "https://www.sarkariresult.com/answerkey/"),
+    ("Syllabus", "https://www.sarkariresult.com/syllabus/"),
+    ("Admission", "https://www.sarkariresult.com/admission/"),
 ]
+CATEGORY_FRONTIER_LIMIT = 20
+SOURCE_EXCERPT_LIMIT = 12000
+CATEGORY_SNAPSHOT_PROVENANCE = "sarkariresult_visible_category_box_v1"
+CATEGORY_EXTRACTOR_VERSION = "visible-category-v1"
+CATEGORY_SNAPSHOT_LINEAGE_LIMIT = 48
 
 JINA_API_KEY = os.environ.get("JINA_API_KEY", "").strip()
 
@@ -37,7 +46,8 @@ BLOCKED_SEGMENTS = {
     "latestjob", "result", "admitcard", "answerkey", "syllabus", "admission",
     "contact", "privacy", "disclaimer", "about", "search", "feed", "category", "tag",
     "author", "page", "paged", "archive", "archives", "comments", "trackback",
-    "sitemap", "robots", "cdn-cgi"
+    "sitemap", "robots", "cdn-cgi", "tools", "tool", "android", "ios", "app",
+    "whatsapp", "telegram", "youtube", "social"
 }
 STATIC_EXT = re.compile(r"\.(?:jpg|jpeg|png|gif|webp|svg|css|js|xml|txt|pdf|zip|rar)$", re.I)
 URL_RE = re.compile(r"https?://(?:www\.)?sarkariresult\.com/[^\s<>()\]\[\"']+", re.I)
@@ -132,16 +142,6 @@ def fetch_text(url: str, extra_headers=None) -> str:
     raise last or RuntimeError("search fetch failed")
 
 
-def search_jina(query: str) -> str:
-    # Official Jina Search endpoint: https://s.jina.ai/<query>
-    if not JINA_API_KEY:
-        raise RuntimeError("JINA_API_KEY environment variable is missing")
-    return fetch_text(
-        "https://s.jina.ai/" + quote(query, safe=""),
-        {"Authorization": "Bearer " + JINA_API_KEY},
-    )
-
-
 def clean_title(text: str) -> str:
     text = re.sub(r"[*_`~#]+", " ", text or "")
     text = re.sub(r"\s+", " ", text).strip()
@@ -190,6 +190,217 @@ def extract_items(text: str, label: str):
         out.append({"url": url, "title": title_near_url(text, raw_url), "label": label})
 
     return out
+
+
+def _category_heading_aliases(label: str):
+    aliases = {clean_title(label).casefold()}
+    if label == "Latest Jobs":
+        aliases.update({"latest job", "latest jobs"})
+    elif label == "Admit Card":
+        aliases.update({"admit card", "admit cards"})
+    elif label == "Answer Key":
+        aliases.update({"answer key", "answer keys"})
+    return aliases
+
+
+def isolate_category_scope(text: str, label: str) -> str:
+    """Return the visible category box/list when it can be isolated safely."""
+    value = text or ""
+    if not value:
+        return ""
+    aliases = _category_heading_aliases(label)
+
+    if re.search(r"<(?:html|table|div|section)\b", value, re.I):
+        soup = BeautifulSoup(value, "html.parser")
+        for node in soup.find_all(["h1", "h2", "h3", "h4", "th", "td", "div"]):
+            heading = clean_visible_text(node).casefold().rstrip(":")
+            if heading not in aliases:
+                continue
+            table = node.find_parent("table")
+            if table is not None:
+                return str(table)
+            container = node.find_parent(["section", "article"])
+            if container is not None:
+                return str(container)
+
+    lines = value.splitlines()
+    start = -1
+    start_level = 7
+    for index, line in enumerate(lines):
+        match = re.match(r"^\s*(#{1,6})\s*(.*?)\s*$", line)
+        if not match:
+            continue
+        heading = clean_title(match.group(2)).casefold().rstrip(":")
+        if heading in aliases:
+            start = index + 1
+            start_level = len(match.group(1))
+            break
+    if start < 0:
+        return value
+
+    stop = len(lines)
+    for index in range(start, len(lines)):
+        match = re.match(r"^\s*(#{1,6})\s*(.*?)\s*$", lines[index])
+        if not match or len(match.group(1)) > start_level:
+            continue
+        heading = clean_title(match.group(2)).casefold().rstrip(":")
+        if heading and heading not in aliases:
+            stop = index
+            break
+    return "\n".join(lines[start:stop])
+
+
+def extract_category_items(text: str, label: str):
+    """Extract individual articles in the visible order of one category."""
+    scope = isolate_category_scope(text, label)
+    items = extract_items(scope, label)
+    if not items and scope != (text or ""):
+        items = extract_items(text, label)
+    return items[:CATEGORY_FRONTIER_LIMIT]
+
+
+def ordered_url_sha256(urls) -> str:
+    normalized = [canonical(url) for url in urls if canonical(url)]
+    return hashlib.sha256("\n".join(normalized).encode("utf-8")).hexdigest()
+
+
+def load_previous_category_snapshots(path=Path("feed.json")):
+    """Load only internally consistent snapshots made by this exact extractor."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    items_by_category = {}
+    for item in payload.get("items") or []:
+        category = clean_title(item.get("category") or item.get("label") or "")
+        url = canonical(item.get("url") or "")
+        if not category or not is_article(url):
+            continue
+        try:
+            position = int(item.get("category_position", item.get("position", 10**9)))
+        except Exception:
+            position = 10**9
+        items_by_category.setdefault(category, []).append((position, url, item))
+
+    valid = {}
+    for snapshot in payload.get("category_snapshots") or []:
+        if not isinstance(snapshot, dict):
+            continue
+        label = clean_title(snapshot.get("label") or snapshot.get("category") or "")
+        if not label or snapshot.get("status") != "fresh":
+            continue
+        if snapshot.get("provenance") != CATEGORY_SNAPSHOT_PROVENANCE:
+            continue
+        if snapshot.get("extractor_version") != CATEGORY_EXTRACTOR_VERSION:
+            continue
+        ordered_rows = sorted(items_by_category.get(label, []), key=lambda row: row[0])
+        urls = []
+        positions = []
+        item_metadata_valid = True
+        for position, url, item in ordered_rows:
+            positions.append(position)
+            urls.append(url)
+            if (
+                item.get("category_snapshot_provenance") != CATEGORY_SNAPSHOT_PROVENANCE
+                or item.get("category_extractor_version") != CATEGORY_EXTRACTOR_VERSION
+                or item.get("category_snapshot_sha256") != snapshot.get("ordered_urls_sha256")
+            ):
+                item_metadata_valid = False
+        expected_hash = ordered_url_sha256(urls)
+        if not urls or positions != list(range(len(urls))):
+            continue
+        try:
+            item_count = int(snapshot.get("item_count") or 0)
+        except (TypeError, ValueError):
+            continue
+        if item_count != len(urls):
+            continue
+        if snapshot.get("ordered_urls_sha256") != expected_hash or not item_metadata_valid:
+            continue
+        ancestors = [
+            str(value)
+            for value in snapshot.get("ancestor_snapshot_sha256s") or []
+            if re.fullmatch(r"[0-9a-f]{64}", str(value))
+        ]
+        valid[label] = {
+            "urls": urls,
+            "snapshot_hash": expected_hash,
+            "ancestor_snapshot_sha256s": ancestors[:CATEGORY_SNAPSHOT_LINEAGE_LIMIT],
+        }
+    return valid
+
+
+def _parse_source_datetime(value: str) -> str:
+    raw = clean_visible_text(value)
+    if not raw:
+        return ""
+    parsed = None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except Exception:
+        try:
+            parsed = parsedate_to_datetime(raw)
+        except Exception:
+            return ""
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).isoformat()
+
+
+def extract_source_temporal_metadata(content: str, representation: str):
+    """Return only dates exposed by article/Jina metadata; never infer one."""
+    text = content or ""
+    published = ""
+    updated = ""
+    status = "unavailable"
+
+    published_match = re.search(r"^Published Time:\s*(.+?)\s*$", text, re.I | re.M)
+    if published_match:
+        published = _parse_source_datetime(published_match.group(1))
+        if published:
+            status = "jina_published_time"
+
+    if not published and representation.endswith("html"):
+        soup = BeautifulSoup(text, "html.parser")
+        for attribute, key in (("property", "article:published_time"), ("itemprop", "datePublished")):
+            node = soup.find(attrs={attribute: key})
+            if node is not None:
+                published = _parse_source_datetime(node.get("content") or node.get_text(" ", strip=True))
+                if published:
+                    status = "html_article_published_time"
+                    break
+
+    if representation.endswith("html"):
+        soup = BeautifulSoup(text, "html.parser")
+        for attribute, key in (("property", "article:modified_time"), ("itemprop", "dateModified")):
+            node = soup.find(attrs={attribute: key})
+            if node is not None:
+                updated = _parse_source_datetime(node.get("content") or node.get_text(" ", strip=True))
+                if updated:
+                    break
+
+    return {
+        "source_published_at": published,
+        "source_updated_at": updated,
+        "source_date_status": status,
+    }
+
+
+def source_excerpt_from_content(content: str, representation: str, limit: int = SOURCE_EXCERPT_LIMIT) -> str:
+    """Create a bounded excerpt from the actual fetched article representation."""
+    value = content or ""
+    if not value:
+        return ""
+    if representation.endswith("html"):
+        soup = BeautifulSoup(value, "html.parser")
+        for node in soup(["script", "style", "noscript"]):
+            node.decompose()
+        value = soup.get_text("\n", strip=True)
+    value = re.sub(r"[\t\r ]+", " ", value)
+    value = re.sub(r"\n\s+", "\n", value)
+    value = re.sub(r"\n{3,}", "\n\n", value).strip()
+    return value[:limit]
 
 
 def clean_visible_text(value) -> str:
@@ -358,10 +569,16 @@ def extract_jina_payload_content(text: str, content_type: str):
         content = payload.get("content")
     if not isinstance(content, str) or not content.strip():
         return "", "jina_json_content_missing"
+    if isinstance(data, dict):
+        published_time = data.get("publishedTime") or data.get("published_time")
+        if published_time and not re.search(r"^Published Time:\s*", content, re.I | re.M):
+            content = f"Published Time: {published_time}\n{content}"
     return content, ""
 
 
-def jina_content_rejection_reason(content: str, content_type: str) -> str:
+def jina_content_rejection_reason(
+    content: str, content_type: str, require_important_links: bool = True
+) -> str:
     if len(content or "") <= 100:
         return "content_too_short"
     block_reason = source_body_block_reason(content)
@@ -372,12 +589,18 @@ def jina_content_rejection_reason(content: str, content_type: str) -> str:
         return "login_page"
     if "other_error_format" in kinds:
         return "other_error_format"
-    if not important_links_heading_present(content):
+    if require_important_links and not important_links_heading_present(content):
         return "important_links_heading_not_found"
     return ""
 
 
-def evaluate_jina_response(endpoint_name: str, request_url: str, target_url: str, response):
+def evaluate_jina_response(
+    endpoint_name: str,
+    request_url: str,
+    target_url: str,
+    response,
+    require_important_links: bool = True,
+):
     diagnostics = log_jina_response_diagnostics(endpoint_name, request_url, target_url, response)
     if not 200 <= diagnostics["status"] < 300:
         rejection_reason = f"http_{diagnostics['status']}"
@@ -414,7 +637,9 @@ def evaluate_jina_response(endpoint_name: str, request_url: str, target_url: str
         )
         content_type = "text/markdown"
 
-    rejection_reason = jina_content_rejection_reason(content, content_type)
+    rejection_reason = jina_content_rejection_reason(
+        content, content_type, require_important_links=require_important_links
+    )
     if rejection_reason:
         print(
             f"[jina-response][decision] endpoint={endpoint_name} "
@@ -428,8 +653,8 @@ def evaluate_jina_response(endpoint_name: str, request_url: str, target_url: str
     return content, ""
 
 
-def fetch_source_page(url: str):
-    """Fetch an article directly, then use authenticated Jina Reader on failure."""
+def fetch_source_page(url: str, require_important_links: bool = True):
+    """Fetch a source URL directly, then use authenticated Jina Reader."""
     result = {
         "content": None,
         "direct_status": "not_attempted",
@@ -504,7 +729,11 @@ def fetch_source_page(url: str):
         )
         result["jina_http_status"] = int(response.status_code)
         content, rejection_reason = evaluate_jina_response(
-            "reader_url_get", jina_url, url, response
+            "reader_url_get",
+            jina_url,
+            url,
+            response,
+            require_important_links=require_important_links,
         )
         if content is not None:
             representation = content_representation(content)
@@ -542,7 +771,11 @@ def fetch_source_page(url: str):
         )
         result["jina_http_status"] = int(response.status_code)
         content, rejection_reason = evaluate_jina_response(
-            "authenticated_api_post", jina_api_url, url, response
+            "authenticated_api_post",
+            jina_api_url,
+            url,
+            response,
+            require_important_links=require_important_links,
         )
         if content is not None:
             representation = content_representation(content)
@@ -909,6 +1142,16 @@ def enrich_item_with_important_links(item):
     enriched["source_fetch_status"] = fetch_status
     enriched["important_links"] = []
     enriched["important_links_count"] = 0
+    enriched["source_fetched_at"] = datetime.now(timezone.utc).isoformat()
+    enriched["source_representation"] = fetch_result.get("representation") or "none"
+    enriched["source_excerpt"] = source_excerpt_from_content(
+        fetch_result.get("content") or "", fetch_result.get("representation") or "none"
+    )
+    enriched.update(
+        extract_source_temporal_metadata(
+            fetch_result.get("content") or "", fetch_result.get("representation") or "none"
+        )
+    )
 
     print(
         f"[source-fetch] url={url} direct_status={fetch_result['direct_status']!r} "
@@ -966,35 +1209,96 @@ def enrich_item_with_important_links(item):
 def enrich_items_with_important_links(items):
     if not items:
         return []
-    worker_count = min(4, len(items))
+    # The same article may legitimately appear in more than one category.
+    # Fetch it once, then retain every category-specific position in feed.json.
+    unique_items = {}
+    for item in items:
+        unique_items.setdefault(item["url"], item)
+    worker_count = min(4, len(unique_items))
     with ThreadPoolExecutor(max_workers=worker_count) as executor:
-        return list(executor.map(enrich_item_with_important_links, items))
+        enriched_unique = list(executor.map(enrich_item_with_important_links, unique_items.values()))
+    enriched_by_url = {item["url"]: item for item in enriched_unique}
+    result = []
+    for item in items:
+        merged = dict(item)
+        source = enriched_by_url[item["url"]]
+        for key in (
+            "source_fetch_status", "source_fetched_at", "source_published_at",
+            "source_updated_at", "source_date_status", "source_representation",
+            "source_excerpt", "important_links",
+            "important_links_count",
+        ):
+            merged[key] = source.get(key)
+        result.append(merged)
+    return result
 
 
 def main():
     now = datetime.now(timezone.utc).isoformat()
-    all_items, global_seen = [], set()
+    previous_snapshots = load_previous_category_snapshots()
+    all_items = []
     diagnostics = []
+    category_snapshots = []
 
-    for label, query in SEARCHES:
+    for label, category_url in CATEGORIES:
         try:
-            text = search_jina(query)
-            items = extract_items(text, label)
-            accepted = 0
+            fetch_result = fetch_source_page(category_url, require_important_links=False)
+            text = fetch_result.get("content") or ""
+            items = extract_category_items(text, label) if text else []
+            if not items:
+                raise RuntimeError(
+                    "category page returned no valid ordered article URLs "
+                    f"({fetch_result.get('source_fetch_status', 'unknown')})"
+                )
+            current_urls = [item["url"] for item in items]
+            current_snapshot_hash = ordered_url_sha256(current_urls)
+            previous_snapshot = previous_snapshots.get(label)
+            previous_hash = previous_snapshot["snapshot_hash"] if previous_snapshot else ""
+            lineage = []
+            if previous_snapshot:
+                lineage = [previous_hash] + previous_snapshot.get("ancestor_snapshot_sha256s", [])
+            lineage = list(dict.fromkeys(lineage))[:CATEGORY_SNAPSHOT_LINEAGE_LIMIT]
+            previous_set = set(previous_snapshot["urls"]) if previous_snapshot else set()
+            surviving_anchor = next((url for url in current_urls if url in previous_set), "")
+            transition_status = (
+                "baseline"
+                if not previous_snapshot
+                else ("authoritative_transition" if surviving_anchor else "no_surviving_anchor")
+            )
+
             for pos, item in enumerate(items):
-                if item["url"] in global_seen:
-                    continue
-                global_seen.add(item["url"])
                 item["position"] = pos
+                item["category"] = label
+                item["category_position"] = pos
+                item["category_source_url"] = category_url
+                item["category_snapshot_status"] = "fresh"
+                item["category_fetched_at"] = now
+                item["category_snapshot_provenance"] = CATEGORY_SNAPSHOT_PROVENANCE
+                item["category_extractor_version"] = CATEGORY_EXTRACTOR_VERSION
+                item["category_snapshot_sha256"] = current_snapshot_hash
                 item["discovered_at"] = now
+                item["collected_at"] = now
                 all_items.append(item)
-                accepted += 1
             diagnostics.append({
                 "label": label,
-                "ok": accepted > 0,
-                "count": accepted,
+                "ok": True,
+                "count": len(items),
                 "bytes": len(text),
-                "source": "s.jina.ai",
+                "source": category_url,
+                "fetch_status": fetch_result.get("source_fetch_status"),
+            })
+            category_snapshots.append({
+                "label": label,
+                "source_url": category_url,
+                "status": "fresh",
+                "item_count": len(items),
+                "fetched_at": now,
+                "provenance": CATEGORY_SNAPSHOT_PROVENANCE,
+                "extractor_version": CATEGORY_EXTRACTOR_VERSION,
+                "ordered_urls_sha256": current_snapshot_hash,
+                "previous_snapshot_sha256": previous_hash,
+                "ancestor_snapshot_sha256s": lineage,
+                "transition_status": transition_status,
             })
         except Exception as e:
             diagnostics.append({
@@ -1002,16 +1306,33 @@ def main():
                 "ok": False,
                 "count": 0,
                 "error": str(e)[:300],
-                "source": "s.jina.ai",
+                "source": category_url,
+            })
+            category_snapshots.append({
+                "label": label,
+                "source_url": category_url,
+                "status": "failed",
+                "item_count": 0,
+                "fetched_at": now,
+                "error": str(e)[:300],
             })
         time.sleep(1)
 
-    feed_items = enrich_items_with_important_links(all_items[:500])
+    if not all_items:
+        print(json.dumps({
+            "generated_at": now,
+            "items": 0,
+            "diagnostics": diagnostics,
+        }, ensure_ascii=False))
+        raise SystemExit("V4.5 discovered 0 category article URLs; existing feed.json was preserved.")
+
+    feed_items = enrich_items_with_important_links(all_items)
 
     payload = {
-        "version": "4.3",
+        "version": "4.5",
         "generated_at": now,
-        "source": "sarkariresult.com indexed URLs via Jina Search + GitHub Actions; source Important Links extracted by collector.py",
+        "source": "sarkariresult.com visible category order via authenticated Jina Reader + GitHub Actions; source Important Links extracted by collector.py",
+        "category_snapshots": category_snapshots,
         "items": feed_items,
         "diagnostics": diagnostics,
     }
@@ -1024,10 +1345,6 @@ def main():
         "important_links": sum(item["important_links_count"] for item in feed_items),
         "diagnostics": diagnostics,
     }, ensure_ascii=False))
-
-    if not all_items:
-        raise SystemExit("V4.3 discovered 0 article URLs. feed.json contains diagnostics.")
-
 
 if __name__ == "__main__":
     main()

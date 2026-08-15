@@ -27,7 +27,13 @@ const RV = Object.freeze({
   SEEN_KEY: 'RV_SEEN_SOURCE_URLS',
   SEEN_PREFIX: 'RV_SEEN_CHUNK_',
   DISCOVERY_STATE_PREFIX: 'RV_DISCOVERY_STATE_CHUNK_',
-  DISCOVERY_STATE_VERSION: 1,
+  DISCOVERY_STATE_VERSION: 2,
+  NEW_MAX_SOURCE_AGE_HOURS: 96,
+  NEW_MAX_FUTURE_SKEW_HOURS: 6,
+  MAX_VERIFICATIONS_PER_RUN: 8,
+  DISCOVERY_HISTORY_URL_LIMIT: 2000,
+  CATEGORY_SNAPSHOT_PROVENANCE: 'sarkariresult_visible_category_box_v1',
+  CATEGORY_EXTRACTOR_VERSION: 'visible-category-v1',
   REGISTRY_PREFIX: 'RV_REGISTRY_CHUNK_',
   UPDATE_CURSOR_KEY: 'RV_UPDATE_CURSOR',
   BLOG_ID_KEY: 'RV_BLOGGER_BLOG_ID',
@@ -184,7 +190,7 @@ function checkNewSarkariResultPosts() {
     if (!isDiscoveryStateInitialized_(discoveryState)) {
       const baselineUrls = discovered.map(function (item) { return item.url; });
       saveSeen_(seen.concat(baselineUrls));
-      saveDiscoveryState_(createDiscoveryState_(discovered, []));
+      saveDiscoveryState_(createDiscoveryState_(discovered, {}, null, baselineUrls));
       Logger.log('Discovery baseline initialized with %s current feed URLs. No new Blogger drafts were created.', baselineUrls.length);
       applyApprovedUpdates_(registry, config);
       checkTrackedSourceUpdates_(registry, config, discovered);
@@ -195,32 +201,89 @@ function checkNewSarkariResultPosts() {
     const decision = classifyDiscoveryDelta_(discovered, seen, registry, discoveryState);
     const updatedSeen = unique_(seen.concat(decision.historicalUrls));
     saveSeen_(updatedSeen);
-    discoveryState = createDiscoveryState_(discovered, decision.pendingUrls, discoveryState);
+    discoveryState = createDiscoveryState_(discovered, decision.pendingCandidates, discoveryState, decision.historicalUrls);
     saveDiscoveryState_(discoveryState);
 
     if (decision.historicalUrls.length) {
       Logger.log('Baselined %s unseen non-head feed URLs without creating drafts.', decision.historicalUrls.length);
     }
 
-    const pending = decision.readyItems.slice(0, config.maxPostsPerRun);
+    const pending = decision.readyItems.slice(0, RV.MAX_VERIFICATIONS_PER_RUN);
+    let createdDrafts = 0;
+    const bloggerSourceMapCache = {};
     pending.forEach(function (item) {
+      if (createdDrafts >= config.maxPostsPerRun) return;
       try {
-        const created = processSourcePost_(item, config);
+        const existingPending = discoveryState.pendingCandidates && discoveryState.pendingCandidates[item.url];
+        if (existingPending && existingPending.draftCreationState === 'started' &&
+            existingPending.verifiedDecision === 'NEW' && existingPending.verifiedSourceHash) {
+          const recoveredDraft = findExistingDraftBySourceUrl_(item.url, config, bloggerSourceMapCache);
+          if (recoveredDraft) {
+            const recoveredLabel = canonicalLifecycleLabel_((recoveredDraft.labels || [])[0]) ||
+              canonicalLifecycleLabel_(item.label) || 'Latest Jobs';
+            const recovered = {
+              bloggerPost: recoveredDraft,
+              sourceHash: existingPending.verifiedSourceHash,
+              generated: {
+                label: recoveredLabel,
+                labels: mergeBloggerLabels_(recoveredDraft.labels || [], [recoveredLabel])
+              }
+            };
+            registry[item.url] = createRegistryEntry_(item, recovered);
+            saveRegistry_(registry);
+            updatedSeen.push(item.url);
+            saveSeen_(updatedSeen);
+            removePendingDiscoveryCandidate_(discoveryState, item.url);
+            saveDiscoveryState_(discoveryState);
+            createdDrafts++;
+            Logger.log('Recovered previously created draft for retry-safe source %s (Post ID %s). No duplicate was created.', item.url, recoveredDraft.id);
+            return;
+          }
+        }
+
+        const resolution = verifyDiscoveryCandidate_(item, registry, discoveryState, config, bloggerSourceMapCache);
+        recordPendingDiscoveryDecision_(discoveryState, item.url, resolution);
+        saveDiscoveryState_(discoveryState);
+
+        if (resolution.decision === 'UPDATE') {
+          if (resolution.matchedRegistryKey) {
+            removePendingDiscoveryCandidate_(discoveryState, item.url);
+            saveDiscoveryState_(discoveryState);
+            Logger.log('UPDATE candidate routed to tracked source %s (Blogger Post ID %s). No normal draft created.',
+              resolution.matchedRegistryKey, registry[resolution.matchedRegistryKey].bloggerPostId);
+          } else {
+            Logger.log('REVIEW_REQUIRED decision=UPDATE source=%s reason=%s. No normal draft created.', item.url, resolution.reason);
+          }
+          return;
+        }
+
+        if (resolution.decision !== 'NEW') {
+          Logger.log('REVIEW_REQUIRED decision=UNCERTAIN source=%s reason=%s. No normal draft created.', item.url, resolution.reason);
+          return;
+        }
+
+        beginPendingDraftAttempt_(discoveryState, item.url);
+        saveDiscoveryState_(discoveryState);
+        const created = processSourcePost_(item, config, resolution.source);
         registry[item.url] = createRegistryEntry_(item, created);
         saveRegistry_(registry);
         updatedSeen.push(item.url);
         saveSeen_(updatedSeen);
-        discoveryState.pendingUrls = discoveryState.pendingUrls.filter(function (url) {
-          return url !== item.url;
-        });
+        removePendingDiscoveryCandidate_(discoveryState, item.url);
         saveDiscoveryState_(discoveryState);
+        createdDrafts++;
         Logger.log('Draft created: %s', created.bloggerPost.url || created.bloggerPost.id);
       } catch (error) {
-        Logger.log('Skipped %s — %s', item.url, error.message);
+        recordPendingDiscoveryDecision_(discoveryState, item.url, {
+          decision: 'UNCERTAIN',
+          reason: 'candidate verification or draft creation failed: ' + String(error && error.message || error).slice(0, 500)
+        });
+        saveDiscoveryState_(discoveryState);
+        Logger.log('REVIEW_REQUIRED decision=UNCERTAIN source=%s reason=%s. Candidate remains retryable.', item.url, error.message);
       }
     });
 
-    if (!pending.length) Logger.log('No new Sarkari Result post found.');
+    if (!pending.length || !createdDrafts) Logger.log('No verified NEW Sarkari Result post was drafted.');
     applyApprovedUpdates_(registry, config);
     checkTrackedSourceUpdates_(registry, config, discovered);
     saveRegistry_(registry);
@@ -258,8 +321,8 @@ function applyApprovedUpdatesNow() {
   saveRegistry_(registry);
 }
 
-function processSourcePost_(item, config) {
-  const source = fetchSourceArticle_(item.url, item.importantLinks, item.sourceFetchStatus, item.importantLinksCount, item.title);
+function processSourcePost_(item, config, preparedSource) {
+  const source = preparedSource || fetchSourceArticle_(item.url, item.importantLinks, item.sourceFetchStatus, item.importantLinksCount, item.title, item.sourceExcerpt);
   const lifecycleLabel = detectCurrentLifecycleLabel_(source, item.label, item.title);
   const generated = generatePostWithGemini_(source, lifecycleLabel, config);
   generated.label = lifecycleLabel;
@@ -272,6 +335,348 @@ function processSourcePost_(item, config) {
     sourceHash: fingerprintSource_(source),
     generated: generated
   };
+}
+
+function verifyDiscoveryCandidate_(item, registry, discoveryState, config, bloggerSourceMapCache) {
+  const matchedRegistryKey = findRegistryKeyByCanonicalSource_(registry, item.url);
+  if (matchedRegistryKey) {
+    return {
+      decision: 'UPDATE',
+      reason: 'canonical source URL already maps to an existing Blogger Post ID',
+      matchedRegistryKey: matchedRegistryKey,
+      source: null
+    };
+  }
+
+  const mappedBloggerPost = findTrackedBloggerPostBySourceUrl_(item.url, config, ['LIVE', 'DRAFT'], bloggerSourceMapCache);
+  if (mappedBloggerPost) {
+    const recoveredLabel = detectCurrentLifecycleLabel_({ title: mappedBloggerPost.title || '', url: item.url, links: item.importantLinks || [], text: '' }, item.label, item.title);
+    registry[item.url] = {
+      sourceUrl: item.url,
+      bloggerPostId: String(mappedBloggerPost.id),
+      label: recoveredLabel,
+      labels: mergeBloggerLabels_(mappedBloggerPost.labels || [], [recoveredLabel]),
+      sourceTitle: item.title || mappedBloggerPost.title || '',
+      importantLinks: sourceLinkRows_(item.importantLinks || []),
+      importantLinksCount: Number(item.importantLinksCount || 0),
+      sourceFetchStatus: item.sourceFetchStatus || '',
+      sourceHash: '',
+      reviewDraftId: '',
+      candidateHash: '',
+      appliedCandidateHash: '',
+      lastAppliedReviewDraftId: '',
+      lastAppliedCandidateHash: '',
+      createdAt: new Date().toISOString(),
+      lastCheckedAt: ''
+    };
+    return {
+      decision: 'UPDATE',
+      reason: 'exact RV_SOURCE_URL metadata already maps to Blogger Post ID ' + mappedBloggerPost.id,
+      matchedRegistryKey: item.url,
+      source: null
+    };
+  }
+
+  const source = fetchSourceArticle_(
+    item.url,
+    item.importantLinks,
+    item.sourceFetchStatus,
+    item.importantLinksCount,
+    item.title,
+    item.sourceExcerpt
+  );
+  const evidence = newnessEvidence_(item, source, Date.now());
+  const titleMatches = candidateRegistryTitleMatches_(item, registry);
+  if (!evidence.ok) {
+    return {
+      decision: 'UNCERTAIN',
+      reason: 'Hard frontier/newness checks failed: ' + evidence.reasons.join('; '),
+      matchedRegistryKey: '',
+      source: source,
+      titleMatches: titleMatches,
+      evidenceBasis: evidence.basis
+    };
+  }
+  const existingPostContexts = loadCandidateExistingPostContexts_(titleMatches, config);
+  let geminiDecision;
+  try {
+    geminiDecision = verifyDiscoveryCandidateWithGemini_(item, source, existingPostContexts, config);
+  } catch (error) {
+    geminiDecision = {
+      classification: 'UNCERTAIN',
+      reason: 'Gemini verifier failed: ' + String(error && error.message || error).slice(0, 400)
+    };
+  }
+  const finalDecision = finalizeDiscoveryCandidateDecision_({
+    existingRegistryKey: '',
+    evidence: evidence,
+    gemini: geminiDecision
+  });
+  finalDecision.source = source;
+  finalDecision.matchedRegistryKey = '';
+  finalDecision.titleMatches = titleMatches;
+  finalDecision.evidenceBasis = evidence.basis;
+  return finalDecision;
+}
+
+function findRegistryKeyByCanonicalSource_(registry, sourceUrl) {
+  const canonical = canonicalSourceUrl_(sourceUrl);
+  const keys = Object.keys(registry || {});
+  for (let index = 0; index < keys.length; index++) {
+    const key = keys[index];
+    const entry = registry[key] || {};
+    if (canonicalSourceUrl_(key) === canonical || canonicalSourceUrl_(entry.sourceUrl) === canonical) return key;
+  }
+  return '';
+}
+
+function candidateTitleTokens_(value) {
+  const stop = { sarkari: true, result: true, latest: true, update: true, online: true, form: true, download: true, admit: true, card: true, answer: true, key: true, recruitment: true, vacancy: true, exam: true, date: true, 2024: true, 2025: true, 2026: true, 2027: true };
+  const seen = {};
+  return cleanText_(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(/\s+/).filter(function (token) {
+    if (token.length < 3 || stop[token] || seen[token]) return false;
+    seen[token] = true;
+    return true;
+  });
+}
+
+function candidateRegistryTitleMatches_(item, registry) {
+  const candidateTokens = candidateTitleTokens_([item && item.title, item && item.url].join(' '));
+  if (candidateTokens.length < 2) return [];
+  const matches = [];
+  Object.keys(registry || {}).forEach(function (sourceUrl) {
+    const entry = registry[sourceUrl] || {};
+    const existingTokens = candidateTitleTokens_([entry.sourceTitle, sourceUrl].join(' '));
+    if (existingTokens.length < 2) return;
+    const existingSet = {};
+    existingTokens.forEach(function (token) { existingSet[token] = true; });
+    const overlap = candidateTokens.filter(function (token) { return existingSet[token]; }).length;
+    const score = overlap / Math.max(candidateTokens.length, existingTokens.length);
+    if (overlap >= 2 && score >= 0.5) {
+      matches.push({
+        sourceUrl: sourceUrl,
+        bloggerPostId: String(entry.bloggerPostId || ''),
+        title: cleanText_(entry.sourceTitle || ''),
+        score: score
+      });
+    }
+  });
+  matches.sort(function (a, b) { return b.score - a.score; });
+  return matches.slice(0, 5);
+}
+
+function loadCandidateExistingPostContexts_(titleMatches, config) {
+  return (titleMatches || []).slice(0, 2).map(function (match) {
+    const context = {
+      sourceUrl: match.sourceUrl,
+      bloggerPostId: match.bloggerPostId,
+      registryTitle: match.title,
+      score: match.score,
+      bloggerTitle: '',
+      bloggerLabels: [],
+      bloggerContent: '',
+      readStatus: 'unavailable'
+    };
+    try {
+      const post = getBloggerPost_(match.bloggerPostId, config);
+      if (String(post && post.id || '') !== String(match.bloggerPostId || '')) return context;
+      context.bloggerTitle = cleanText_(post.title || '');
+      context.bloggerLabels = post.labels || [];
+      context.bloggerContent = htmlToText_(post.content || '').slice(0, 8000);
+      context.readStatus = 'verified';
+    } catch (error) {
+      context.readStatus = 'failed_read';
+    }
+    return context;
+  });
+}
+
+function newnessEvidence_(item, source, nowMs) {
+  const reasons = [];
+  const context = item && item.discoveryContext || {};
+  const status = cleanText_(item && item.sourceDateStatus || '').toLowerCase();
+  const publishedMs = parseFeedDateMs_(item && item.sourcePublishedAt || '');
+  const currentMs = Number(nowMs || Date.now());
+  const ageHours = publishedMs ? (currentMs - publishedMs) / 3600000 : NaN;
+  const trustedDate = /^(?:jina_published_time|html_article_published_time)$/.test(status);
+
+  if (cleanText_(item && item.categorySnapshotStatus || '').toLowerCase() !== 'fresh') {
+    reasons.push('category snapshot is not confirmed fresh');
+  }
+  if (context.frontierConfirmed !== true) {
+    reasons.push(cleanText_(context.frontierReason || 'NEW_FRONTIER_CONFIRMED proof is unavailable'));
+  }
+  if (context.previousStateValid !== true) reasons.push('previous V2 category snapshot is not trusted');
+  if (context.authoritativeCategorySource !== true) reasons.push('current item is not proven to come from the authoritative category box');
+  if (context.historyClearAtDetection !== true) reasons.push('historical discovery checks did not pass');
+  if (context.registryClearAtDetection !== true) reasons.push('registry/source mapping checks did not pass');
+  if (!isSarkariResultArticle_(item && item.url || '')) reasons.push('candidate URL is not a valid SarkariResult article');
+  if (!source || source.bodyAvailable !== true) reasons.push('source article body is unavailable');
+  if (trustedDate && publishedMs && ageHours > RV.NEW_MAX_SOURCE_AGE_HOURS) {
+    reasons.push('source publication metadata is older than ' + RV.NEW_MAX_SOURCE_AGE_HOURS + ' hours');
+  }
+  if (trustedDate && publishedMs && ageHours < -RV.NEW_MAX_FUTURE_SKEW_HOURS) {
+    reasons.push('source publication metadata is implausibly in the future');
+  }
+  const historicalIdentityReason = historicalSourceIdentityReason_(item && item.url || '', currentMs);
+  if (historicalIdentityReason) reasons.push(historicalIdentityReason);
+  return {
+    ok: reasons.length === 0,
+    reasons: reasons,
+    ageHours: isFinite(ageHours) ? ageHours : null,
+    sourcePublishedAt: cleanText_(item && item.sourcePublishedAt || ''),
+    sourceDateStatus: status,
+    publicationMetadataAvailable: trustedDate && !!publishedMs,
+    basis: context.frontierConfirmed === true ? 'NEW_FRONTIER_CONFIRMED' : 'UNCONFIRMED_FRONTIER'
+  };
+}
+
+function historicalSourceIdentityReason_(sourceUrl, nowMs) {
+  const value = canonicalSourceUrl_(sourceUrl).toLowerCase();
+  const now = new Date(Number(nowMs || Date.now()));
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth();
+  const yearPath = value.match(/sarkariresult\.com\/(20\d{2})\//);
+  const pathYear = yearPath ? Number(yearPath[1]) : 0;
+  if (pathYear && pathYear < currentYear) return 'source URL is filed under an earlier year';
+
+  const monthNumbers = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
+    apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
+    aug: 7, august: 7, sep: 8, sept: 8, september: 8, oct: 9,
+    october: 9, nov: 10, november: 10, dec: 11, december: 11
+  };
+  const monthMatch = value.match(/(?:^|[-_/])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:[-_]?((?:20)?\d{2}))?(?=[-_/]|$)/i);
+  if (!monthMatch) return '';
+  const month = monthNumbers[monthMatch[1].toLowerCase()];
+  let year = pathYear || currentYear;
+  if (monthMatch[2]) {
+    year = Number(monthMatch[2]);
+    if (year < 100) year += 2000;
+  }
+  const ageMonths = (currentYear - year) * 12 + (currentMonth - month);
+  if (ageMonths > 1) return 'source URL contains an older year/month identity';
+  return '';
+}
+
+function finalizeDiscoveryCandidateDecision_(input) {
+  const data = input || {};
+  if (data.existingRegistryKey) {
+    return { decision: 'UPDATE', reason: 'candidate already maps to tracked source ' + data.existingRegistryKey };
+  }
+  const gemini = data.gemini || {};
+  const classification = cleanText_(gemini.classification || '').toUpperCase();
+  const geminiReason = cleanText_(gemini.reason || 'Gemini supplied no reason');
+  if (classification === 'UPDATE') return { decision: 'UPDATE', reason: geminiReason };
+  if (classification !== 'NEW') return { decision: 'UNCERTAIN', reason: geminiReason };
+  if (!data.evidence || data.evidence.ok !== true) {
+    return {
+      decision: 'UNCERTAIN',
+      reason: 'Gemini returned NEW, but deterministic newness evidence failed: ' +
+        ((data.evidence && data.evidence.reasons || []).join('; ') || 'unknown evidence failure')
+    };
+  }
+  return {
+    decision: 'NEW',
+    reason: (data.evidence && data.evidence.basis === 'NEW_FRONTIER_CONFIRMED' ? 'NEW_FRONTIER_CONFIRMED: ' : '') + geminiReason,
+    evidenceBasis: data.evidence && data.evidence.basis || ''
+  };
+}
+
+function verifyDiscoveryCandidateWithGemini_(item, source, existingPostContexts, config) {
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      classification: { type: 'string', enum: ['NEW', 'UPDATE', 'UNCERTAIN'] },
+      reason: { type: 'string' }
+    },
+    required: ['classification', 'reason']
+  };
+  const context = item && item.discoveryContext || {};
+  const prompt = [
+    'Classify this SarkariResult frontier candidate as NEW, UPDATE, or UNCERTAIN.',
+    'You are only a verifier. Your answer cannot create a draft by itself.',
+    'NEW requires reliable evidence that this is a genuinely newly published article and not an old URL moved upward or discovered late.',
+    'UPDATE means lifecycle information for an existing recruitment/article, such as Admit Card, Exam City, Answer Key, Result, DV/PST/PET, revised notice, correction, merit list, interview letter or new exam date.',
+    'UNCERTAIN is mandatory whenever publication history or identity is ambiguous.',
+    'Never invent dates, history, matches or facts. A current collector timestamp is not a publication date.',
+    '',
+    'CATEGORY: ' + cleanText_(item.category || item.label || ''),
+    'CATEGORY POSITION: ' + String(item.categoryPosition),
+    'CANDIDATE TITLE: ' + cleanText_(item.title || source.title || ''),
+    'CANONICAL SOURCE URL: ' + item.url,
+    'SOURCE PUBLISHED AT: ' + (item.sourcePublishedAt || 'UNAVAILABLE'),
+    'SOURCE UPDATED AT: ' + (item.sourceUpdatedAt || 'UNAVAILABLE'),
+    'SOURCE DATE STATUS: ' + (item.sourceDateStatus || 'unavailable'),
+    'HARD FRONTIER CONFIRMED: ' + (context.frontierConfirmed === true ? 'YES' : 'NO'),
+    'FRONTIER PROOF: ' + cleanText_(context.frontierReason || ''),
+    'SURVIVING ANCHOR: ' + (context.frontierAnchorUrl || 'UNAVAILABLE'),
+    'PREVIOUS SNAPSHOT HASH: ' + (context.frontierPreviousSnapshotHash || 'UNAVAILABLE'),
+    'CURRENT SNAPSHOT HASH: ' + (context.frontierCurrentSnapshotHash || 'UNAVAILABLE'),
+    'PREVIOUS CATEGORY SNAPSHOT: ' + JSON.stringify(context.previousSnapshot || []),
+    'CURRENT NEARBY CATEGORY ITEMS: ' + JSON.stringify(context.nearbyItems || []),
+    'POSSIBLE EXISTING BLOGGER MATCHES/CONTENT (context only, not authority): ' + JSON.stringify(existingPostContexts || []),
+    '',
+    'SOURCE ARTICLE TEXT:',
+    String(source && source.text || '').slice(0, 18000)
+  ].join('\n');
+  const payload = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: schema,
+      maxOutputTokens: 800,
+      temperature: 0
+    }
+  };
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+    encodeURIComponent(config.model) + ':generateContent?key=' + encodeURIComponent(config.apiKey);
+  const response = fetchGeminiWithRetry_(endpoint, payload);
+  const code = response.getResponseCode();
+  const body = response.getContentText();
+  if (code < 200 || code >= 300) throw new Error('Gemini verifier API error ' + code + ': ' + safeApiError_(body));
+  const data = JSON.parse(body);
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const outputText = Array.isArray(parts) ? parts.map(function (part) { return part.text || ''; }).join('').trim() : '';
+  const parsed = parseGeminiJson_(outputText);
+  if (!parsed || ['NEW', 'UPDATE', 'UNCERTAIN'].indexOf(String(parsed.classification || '').toUpperCase()) === -1) {
+    throw new Error('Gemini verifier returned invalid JSON/classification.');
+  }
+  return { classification: String(parsed.classification).toUpperCase(), reason: cleanText_(parsed.reason || '') };
+}
+
+function recordPendingDiscoveryDecision_(state, sourceUrl, result) {
+  if (!state.pendingCandidates || typeof state.pendingCandidates !== 'object') state.pendingCandidates = {};
+  const url = canonicalSourceUrl_(sourceUrl);
+  const existing = state.pendingCandidates[url] || { url: url, firstDetectedAt: new Date().toISOString(), categories: [] };
+  existing.lastDecision = cleanText_(result && result.decision || 'UNCERTAIN');
+  existing.lastReason = cleanText_(result && result.reason || '');
+  existing.lastEvaluatedAt = new Date().toISOString();
+  if (existing.lastDecision === 'NEW' && result && result.source) {
+    existing.verifiedDecision = 'NEW';
+    existing.verifiedSourceHash = fingerprintSource_(result.source);
+    existing.verifiedAt = existing.lastEvaluatedAt;
+  }
+  state.pendingCandidates[url] = existing;
+  state.pendingUrls = Object.keys(state.pendingCandidates);
+}
+
+function beginPendingDraftAttempt_(state, sourceUrl) {
+  const url = canonicalSourceUrl_(sourceUrl);
+  if (!state.pendingCandidates || !state.pendingCandidates[url]) {
+    throw new Error('Pending discovery candidate is missing before draft creation.');
+  }
+  const row = state.pendingCandidates[url];
+  row.draftCreationState = 'started';
+  row.draftAttemptId = row.draftAttemptId || Utilities.getUuid();
+  row.draftAttemptStartedAt = new Date().toISOString();
+}
+
+function removePendingDiscoveryCandidate_(state, sourceUrl) {
+  const url = canonicalSourceUrl_(sourceUrl);
+  if (state.pendingCandidates) delete state.pendingCandidates[url];
+  state.pendingUrls = Object.keys(state.pendingCandidates || {});
 }
 
 
@@ -325,29 +730,157 @@ function discoverSourcePosts_() {
   const rawItems = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
   const results = [];
   const used = {};
+  const categorySnapshots = {};
+
+  (Array.isArray(data.category_snapshots) ? data.category_snapshots : []).forEach(function (snapshot) {
+    const category = normalizeFeedCategory_(snapshot && (snapshot.label || snapshot.category));
+    if (!category) return;
+    categorySnapshots[category] = {
+      label: category,
+      status: cleanText_(snapshot && snapshot.status || '').toLowerCase(),
+      sourceUrl: String(snapshot && snapshot.source_url || ''),
+      fetchedAt: cleanText_(snapshot && snapshot.fetched_at || ''),
+      itemCount: Number(snapshot && snapshot.item_count || 0),
+      provenance: cleanText_(snapshot && snapshot.provenance || ''),
+      extractorVersion: cleanText_(snapshot && snapshot.extractor_version || ''),
+      snapshotHash: cleanText_(snapshot && snapshot.ordered_urls_sha256 || '').toLowerCase(),
+      previousSnapshotHash: cleanText_(snapshot && snapshot.previous_snapshot_sha256 || '').toLowerCase(),
+      ancestorSnapshotHashes: (Array.isArray(snapshot && snapshot.ancestor_snapshot_sha256s) ? snapshot.ancestor_snapshot_sha256s : []).map(function (value) {
+        return cleanText_(value || '').toLowerCase();
+      }).filter(function (value) { return /^[0-9a-f]{64}$/.test(value); }),
+      transitionStatus: cleanText_(snapshot && snapshot.transition_status || '').toLowerCase(),
+      trusted: false,
+      trustReason: 'not validated'
+    };
+  });
 
   rawItems.forEach(function (item, index) {
     const url = canonicalSourceUrl_(item && item.url);
-    if (!isSarkariResultArticle_(url) || used[url]) return;
-    used[url] = true;
+    const category = normalizeFeedCategory_(item && (item.category || item.label));
+    const dedupeKey = category.toLowerCase() + '|' + url;
+    if (!category || !isSarkariResultArticle_(url) || used[dedupeKey]) return;
+    used[dedupeKey] = true;
     const importantLinks = sourceLinkRows_((item && item.important_links) || []);
     const declaredImportantLinksCount = Number(item && item.important_links_count);
+    const declaredPosition = Number(item && (item.category_position !== undefined ? item.category_position : item.position));
+    const categoryMeta = categorySnapshots[category] || {};
     results.push({
       url: url,
       title: cleanText_((item && item.title) || ''),
       label: normalizeFeedLabel_((item && item.label) || inferLabelFromUrlOrTitle_(url, (item && item.title) || '')),
-      publishedMs: parseFeedDateMs_((item && (item.published_at || item.publishedAt || item.discovered_at || item.discoveredAt)) || '') || (1000000000 - index),
+      category: category,
+      categoryPosition: isFinite(declaredPosition) && declaredPosition >= 0 ? declaredPosition : index,
+      categorySnapshotStatus: cleanText_((item && item.category_snapshot_status) || categoryMeta.status || 'legacy_unverified').toLowerCase(),
+      categorySourceUrl: String((item && item.category_source_url) || categoryMeta.sourceUrl || ''),
+      categoryFetchedAt: cleanText_((item && item.category_fetched_at) || categoryMeta.fetchedAt || ''),
+      sourcePublishedAt: cleanText_((item && (item.source_published_at || item.published_at || item.publishedAt)) || ''),
+      sourceUpdatedAt: cleanText_((item && (item.source_updated_at || item.updated_at || item.updatedAt)) || ''),
+      sourceDateStatus: cleanText_((item && item.source_date_status) || '').toLowerCase(),
+      sourceRepresentation: cleanText_((item && item.source_representation) || ''),
+      sourceExcerpt: String((item && item.source_excerpt) || '').slice(0, 20000),
+      categorySnapshotProvenance: cleanText_((item && item.category_snapshot_provenance) || ''),
+      categoryExtractorVersion: cleanText_((item && item.category_extractor_version) || ''),
+      categorySnapshotHash: cleanText_((item && item.category_snapshot_sha256) || '').toLowerCase(),
+      publishedMs: parseFeedDateMs_((item && (item.source_published_at || item.published_at || item.publishedAt)) || ''),
       importantLinks: importantLinks,
       importantLinksCount: isFinite(declaredImportantLinksCount) ? declaredImportantLinksCount : importantLinks.length,
       sourceFetchStatus: cleanText_((item && item.source_fetch_status) || '')
     });
   });
 
+  results.sort(function (a, b) {
+    const categoryOrder = feedCategoryOrder_(a.category) - feedCategoryOrder_(b.category);
+    return categoryOrder || a.categoryPosition - b.categoryPosition;
+  });
+  validateCategorySnapshotProvenance_(results, categorySnapshots);
+  results.categorySnapshots = categorySnapshots;
+  results.feedGeneratedAt = cleanText_(data && data.generated_at || '');
+  results.feedVersion = cleanText_(data && data.version || '');
+
   Logger.log('V4 discovery feed: %s URLs received, %s accepted.', rawItems.length, results.length);
-  // Feed order is authoritative for discovery-frontier comparison. The
-  // collector already preserves its category/search result order; discovered_at
-  // is a run timestamp, not proof of publication time.
+  // Category position is authoritative for frontier comparison. Collector run
+  // timestamps are intentionally not treated as publication evidence.
   return results;
+}
+
+function normalizeFeedCategory_(label) {
+  const value = cleanText_(label || '').toLowerCase();
+  if (value === 'latest jobs' || value === 'latest job' || value === 'job') return 'Latest Jobs';
+  if (value === 'result' || value === 'results') return 'Result';
+  if (value === 'admit card' || value === 'admitcard') return 'Admit Card';
+  if (value === 'answer key' || value === 'answerkey') return 'Answer Key';
+  if (value === 'syllabus') return 'Syllabus';
+  if (value === 'admission') return 'Admission';
+  if (value === 'certificate') return 'Certificate';
+  if (value === 'important') return 'Important';
+  if (value === 'other' || value === 'other updates') return 'Other';
+  return '';
+}
+
+function feedCategoryOrder_(category) {
+  const order = ['Latest Jobs', 'Result', 'Admit Card', 'Answer Key', 'Syllabus', 'Admission', 'Certificate', 'Important', 'Other'];
+  const index = order.indexOf(category);
+  return index < 0 ? order.length : index;
+}
+
+function expectedCategorySourceUrl_(category) {
+  const normalized = normalizeFeedCategory_(category);
+  for (let index = 0; index < RV.SOURCES.length; index++) {
+    if (normalizeFeedCategory_(RV.SOURCES[index].label) === normalized) {
+      return canonicalSourceUrl_(RV.SOURCES[index].url);
+    }
+  }
+  return '';
+}
+
+function categorySnapshotHash_(urls) {
+  const canonicalUrls = (urls || []).map(canonicalSourceUrl_).filter(Boolean);
+  return bytesToHex_(Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    canonicalUrls.join('\n'),
+    Utilities.Charset.UTF_8
+  ));
+}
+
+function validateCategorySnapshotProvenance_(items, snapshots) {
+  const grouped = {};
+  (items || []).forEach(function (item) {
+    const category = normalizeFeedCategory_(item && item.category);
+    if (!category) return;
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push(item);
+  });
+
+  Object.keys(snapshots || {}).forEach(function (category) {
+    const snapshot = snapshots[category];
+    const rows = (grouped[category] || []).slice().sort(function (a, b) {
+      return Number(a.categoryPosition) - Number(b.categoryPosition);
+    });
+    const urls = rows.map(function (row) { return canonicalSourceUrl_(row.url); });
+    const positionsValid = rows.every(function (row, index) {
+      return Number(row.categoryPosition) === index;
+    });
+    const expectedHash = categorySnapshotHash_(urls);
+    const expectedSource = expectedCategorySourceUrl_(category);
+    const itemMetadataValid = rows.every(function (row) {
+      return row.categorySnapshotProvenance === RV.CATEGORY_SNAPSHOT_PROVENANCE &&
+        row.categoryExtractorVersion === RV.CATEGORY_EXTRACTOR_VERSION &&
+        row.categorySnapshotHash === snapshot.snapshotHash;
+    });
+    const checks = [
+      [snapshot.status === 'fresh', 'snapshot status is not fresh'],
+      [snapshot.provenance === RV.CATEGORY_SNAPSHOT_PROVENANCE, 'snapshot provenance is not authoritative'],
+      [snapshot.extractorVersion === RV.CATEGORY_EXTRACTOR_VERSION, 'extractor version does not match'],
+      [canonicalSourceUrl_(snapshot.sourceUrl) === expectedSource, 'category source URL does not match configuration'],
+      [rows.length > 0 && Number(snapshot.itemCount) === rows.length, 'snapshot item count does not match feed rows'],
+      [positionsValid, 'category positions are not contiguous'],
+      [/^[0-9a-f]{64}$/.test(snapshot.snapshotHash) && snapshot.snapshotHash === expectedHash, 'ordered URL hash does not match'],
+      [itemMetadataValid, 'item snapshot provenance does not match category snapshot']
+    ];
+    const failed = checks.filter(function (check) { return !check[0]; });
+    snapshot.trusted = failed.length === 0;
+    snapshot.trustReason = snapshot.trusted ? 'validated authoritative category-box snapshot' : failed[0][1];
+  });
 }
 
 function normalizeFeedLabel_(label) {
@@ -449,7 +982,7 @@ function bloggerLabelsForPost_(post) {
   return labels.length ? labels : ['Latest Jobs'];
 }
 
-function fetchSourceArticle_(url, feedImportantLinks, sourceFetchStatus, declaredImportantLinksCount, feedTitle) {
+function fetchSourceArticle_(url, feedImportantLinks, sourceFetchStatus, declaredImportantLinksCount, feedTitle, feedSourceExcerpt) {
   // V4.6.2 LOCKED IMPORTANT-LINK RULE:
   // GitHub Actions/Python verifies source rows and writes them to feed.json.
   // Apps Script never re-extracts links from the live SarkariResult response.
@@ -494,15 +1027,22 @@ function fetchSourceArticle_(url, feedImportantLinks, sourceFetchStatus, declare
       throw new Error('Source article fetch was not usable. Direct status: ' + sourceDocument.directStatus +
         '; Reader/Jina status: ' + sourceDocument.readerStatus + '. Collector status: ' + (sourceFetchStatus || 'missing') + '.');
     }
+    const collectorExcerpt = cleanText_(feedSourceExcerpt || '').slice(0, 20000);
     title = cleanText_(feedTitle || '') || url;
-    text = [
-      'Verified collector feed metadata for: ' + title,
-      'Source URL: ' + url,
-      'The article body could not be refetched by Apps Script. Do not infer or invent any missing article facts.',
-      'Only the separately supplied verified Important Links rows may be used as read-only link context.'
-    ].join('\n');
-    representation = 'verified-feed-metadata-fallback';
-    bodyAvailable = false;
+    if (collectorExcerpt.length >= 200) {
+      text = collectorExcerpt;
+      representation = 'verified-collector-feed-excerpt';
+      bodyAvailable = true;
+    } else {
+      text = [
+        'Verified collector feed metadata for: ' + title,
+        'Source URL: ' + url,
+        'The article body could not be refetched by Apps Script. Do not infer or invent any missing article facts.',
+        'Only the separately supplied verified Important Links rows may be used as read-only link context.'
+      ].join('\n');
+      representation = 'verified-feed-metadata-fallback';
+      bodyAvailable = false;
+    }
   }
 
   Logger.log('Source representation used: %s. Direct status: %s. Reader/Jina status: %s. Article body available: %s.',
@@ -1341,6 +1881,41 @@ function insertBloggerDraft_(post, config) {
   return JSON.parse(response.getContentText());
 }
 
+function findExistingDraftBySourceUrl_(sourceUrl, config, cache) {
+  return findTrackedBloggerPostBySourceUrl_(sourceUrl, config, ['DRAFT'], cache);
+}
+
+function findTrackedBloggerPostBySourceUrl_(sourceUrl, config, statuses, cache) {
+  const canonical = canonicalSourceUrl_(sourceUrl);
+  const blogId = getBlogId_(config.blogUrl);
+  const requestedStatuses = statuses && statuses.length ? statuses : ['LIVE', 'DRAFT'];
+  const cacheKey = String(blogId) + '|' + requestedStatuses.join(',');
+  const mappingCache = cache || {};
+  if (mappingCache[cacheKey]) return mappingCache[cacheKey][canonical] || null;
+  const sourceMap = {};
+  for (let statusIndex = 0; statusIndex < requestedStatuses.length; statusIndex++) {
+    const status = requestedStatuses[statusIndex];
+    let pageToken = '';
+    for (let page = 0; page < 5; page++) {
+      const endpoint = 'https://www.googleapis.com/blogger/v3/blogs/' + encodeURIComponent(blogId) +
+        '/posts?status=' + encodeURIComponent(status) + '&fetchBodies=true&maxResults=100&view=ADMIN' +
+        (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+      const data = JSON.parse(googleFetch_(endpoint, { method: 'get' }).getContentText());
+      (data.items || []).forEach(function (post) {
+        if (/^(?:UPDATE REVIEW|APPROVED UPDATE|APPLIED UPDATE)\s*[–-]/i.test(cleanText_(post && post.title || ''))) return;
+        const marker = String(post && post.content || '').match(/<!--\s*RV_SOURCE_URL:\s*([\s\S]*?)\s*-->/i);
+        const markerUrl = marker ? canonicalSourceUrl_(marker[1]) : '';
+        if (markerUrl && !sourceMap[markerUrl]) sourceMap[markerUrl] = post;
+      });
+      pageToken = String(data.nextPageToken || '');
+      if (!pageToken) break;
+    }
+    if (pageToken) throw new Error('Blogger source-mapping scan was incomplete; refusing to create a possible duplicate.');
+  }
+  mappingCache[cacheKey] = sourceMap;
+  return sourceMap[canonical] || null;
+}
+
 function checkTrackedSourceUpdates_(registry, config, discoveredItems) {
   const urls = Object.keys(registry);
   if (!urls.length) return;
@@ -1367,13 +1942,15 @@ function checkTrackedSourceUpdates_(registry, config, discoveredItems) {
         entry.importantLinksCount = currentFeedItem.importantLinksCount;
         entry.sourceFetchStatus = currentFeedItem.sourceFetchStatus;
         entry.sourceTitle = currentFeedItem.title || entry.sourceTitle || '';
+        entry.sourceExcerpt = currentFeedItem.sourceExcerpt || entry.sourceExcerpt || '';
       }
       const source = fetchSourceArticle_(
         sourceUrl,
         entry.importantLinks || [],
         entry.sourceFetchStatus || '',
         entry.importantLinksCount || 0,
-        entry.sourceTitle || ''
+        entry.sourceTitle || '',
+        entry.sourceExcerpt || ''
       );
       const currentHash = fingerprintSource_(source);
       entry.lastCheckedAt = new Date().toISOString();
@@ -1926,6 +2503,7 @@ function createRegistryEntry_(item, result) {
     importantLinks: sourceLinkRows_(item.importantLinks || []),
     importantLinksCount: Number(item.importantLinksCount || 0),
     sourceFetchStatus: item.sourceFetchStatus || '',
+    sourceExcerpt: item.sourceExcerpt || '',
     sourceHash: result.sourceHash,
     reviewDraftId: '',
     candidateHash: '',
@@ -2194,7 +2772,7 @@ function isSarkariResultArticle_(url) {
   if (!/^https:\/\/(?:www\.)?sarkariresult\.com\//i.test(value)) return false;
 
   // Ignore category/navigation/system/static URLs.
-  if (/\/(latestjob|result|admitcard|answerkey|syllabus|admission|contact|privacy|disclaimer|about|search|feed|category|tag|author|page|paged|archive|archives|comments|trackback|sitemap|robots|cdn-cgi)(?:\/|$)/i.test(value)) return false;
+  if (/\/(latestjob|result|admitcard|answerkey|syllabus|admission|contact|privacy|disclaimer|about|search|feed|category|tag|author|page|paged|archive|archives|comments|trackback|sitemap|robots|cdn-cgi|tools?|android|ios|app|whatsapp|telegram|youtube|social)(?:\/|$)/i.test(value)) return false;
   if (/\/wp-[^/]*(?:\/|$)/i.test(value)) return false;
   if (/\.(?:jpg|jpeg|png|gif|webp|svg|css|js|xml|txt|pdf|zip|rar)(?:\/)?$/i.test(value)) return false;
 
@@ -2269,16 +2847,83 @@ function extractOpenAIOutputText_(data) {
 
 function discoverySnapshotByLabel_(items) {
   const categories = {};
-  const used = {};
   (items || []).forEach(function (item) {
     const url = canonicalSourceUrl_(item && item.url);
-    if (!url || used[url]) return;
-    used[url] = true;
-    const label = cleanText_(item && item.label) || 'Latest Jobs';
-    if (!categories[label]) categories[label] = [];
-    categories[label].push(url);
+    const category = normalizeFeedCategory_(item && (item.category || item.label));
+    if (!url || !category) return;
+    if (!categories[category]) categories[category] = [];
+    categories[category].push({
+      url: url,
+      position: Number(item && item.categoryPosition),
+      index: categories[category].length
+    });
+  });
+  Object.keys(categories).forEach(function (category) {
+    const seen = {};
+    categories[category] = categories[category].sort(function (a, b) {
+      const aPosition = isFinite(a.position) ? a.position : a.index;
+      const bPosition = isFinite(b.position) ? b.position : b.index;
+      return aPosition - bPosition || a.index - b.index;
+    }).map(function (row) { return row.url; }).filter(function (url) {
+      if (seen[url]) return false;
+      seen[url] = true;
+      return true;
+    });
   });
   return categories;
+}
+
+function discoveryCategoryStatusByLabel_(items) {
+  const statuses = {};
+  const metadata = items && items.categorySnapshots || {};
+  Object.keys(metadata).forEach(function (category) {
+    const normalized = normalizeFeedCategory_(category);
+    if (normalized) statuses[normalized] = cleanText_(metadata[category] && metadata[category].status || '').toLowerCase();
+  });
+  (items || []).forEach(function (item) {
+    const category = normalizeFeedCategory_(item && (item.category || item.label));
+    if (!category || statuses[category]) return;
+    statuses[category] = cleanText_(item && item.categorySnapshotStatus || 'legacy_unverified').toLowerCase();
+  });
+  return statuses;
+}
+
+function discoveryCategoryEvidenceByLabel_(items) {
+  const evidence = {};
+  const metadata = items && items.categorySnapshots || {};
+  Object.keys(metadata).forEach(function (category) {
+    const normalized = normalizeFeedCategory_(category);
+    const row = metadata[category] || {};
+    if (!normalized) return;
+    evidence[normalized] = {
+      trusted: row.trusted === true,
+      trustReason: cleanText_(row.trustReason || ''),
+      provenance: cleanText_(row.provenance || ''),
+      extractorVersion: cleanText_(row.extractorVersion || ''),
+      snapshotHash: cleanText_(row.snapshotHash || '').toLowerCase(),
+      previousSnapshotHash: cleanText_(row.previousSnapshotHash || '').toLowerCase(),
+      ancestorSnapshotHashes: unique_((row.ancestorSnapshotHashes || []).map(function (value) {
+        return cleanText_(value || '').toLowerCase();
+      }).filter(function (value) { return /^[0-9a-f]{64}$/.test(value); })),
+      transitionStatus: cleanText_(row.transitionStatus || '').toLowerCase(),
+      sourceUrl: canonicalSourceUrl_(row.sourceUrl || '')
+    };
+  });
+  return evidence;
+}
+
+function storedCategoryEvidenceIsTrusted_(category, snapshotUrls, evidence) {
+  const row = evidence || {};
+  return row.trusted === true &&
+    row.provenance === RV.CATEGORY_SNAPSHOT_PROVENANCE &&
+    row.extractorVersion === RV.CATEGORY_EXTRACTOR_VERSION &&
+    row.sourceUrl === expectedCategorySourceUrl_(category) &&
+    /^[0-9a-f]{64}$/.test(row.snapshotHash) &&
+    row.snapshotHash === categorySnapshotHash_(snapshotUrls || []);
+}
+
+function isFreshCategorySnapshot_(status) {
+  return cleanText_(status || '').toLowerCase() === 'fresh';
 }
 
 function isDiscoveryStateInitialized_(state) {
@@ -2286,15 +2931,86 @@ function isDiscoveryStateInitialized_(state) {
     state.categories && typeof state.categories === 'object' && !Array.isArray(state.categories));
 }
 
-function createDiscoveryState_(items, pendingUrls, previousState) {
+function normalizePendingDiscoveryCandidates_(value) {
+  const normalized = {};
+  if (Array.isArray(value)) {
+    value.forEach(function (rawUrl) {
+      const url = canonicalSourceUrl_(rawUrl);
+      if (url) normalized[url] = { url: url, categories: [], firstDetectedAt: new Date().toISOString() };
+    });
+    return normalized;
+  }
+  Object.keys(value || {}).forEach(function (rawUrl) {
+    const url = canonicalSourceUrl_(rawUrl);
+    if (!url) return;
+    const row = value[rawUrl] || {};
+    normalized[url] = {
+      url: url,
+      categories: unique_((row.categories || []).map(normalizeFeedCategory_).filter(Boolean)),
+      firstDetectedAt: row.firstDetectedAt || new Date().toISOString(),
+      lastDecision: cleanText_(row.lastDecision || ''),
+      lastReason: cleanText_(row.lastReason || ''),
+      lastEvaluatedAt: row.lastEvaluatedAt || '',
+      draftCreationState: cleanText_(row.draftCreationState || ''),
+      draftAttemptId: cleanText_(row.draftAttemptId || ''),
+      draftAttemptStartedAt: row.draftAttemptStartedAt || '',
+      verifiedDecision: cleanText_(row.verifiedDecision || ''),
+      verifiedSourceHash: cleanText_(row.verifiedSourceHash || ''),
+      verifiedAt: row.verifiedAt || '',
+      frontierConfirmed: row.frontierConfirmed === true,
+      frontierReason: cleanText_(row.frontierReason || ''),
+      frontierCategory: normalizeFeedCategory_(row.frontierCategory || ''),
+      frontierPreviousSnapshotHash: cleanText_(row.frontierPreviousSnapshotHash || '').toLowerCase(),
+      frontierCurrentSnapshotHash: cleanText_(row.frontierCurrentSnapshotHash || '').toLowerCase(),
+      frontierAnchorUrl: canonicalSourceUrl_(row.frontierAnchorUrl || '')
+    };
+  });
+  return normalized;
+}
+
+function createDiscoveryState_(items, pendingCandidates, previousState, historicalUrls) {
   const previous = isDiscoveryStateInitialized_(previousState) ? previousState : {};
   const now = new Date().toISOString();
+  const currentCategories = discoverySnapshotByLabel_(items);
+  const categoryStatuses = discoveryCategoryStatusByLabel_(items);
+  const currentEvidence = discoveryCategoryEvidenceByLabel_(items);
+  const categories = {};
+  const categoryEvidence = {};
+  Object.keys(previous.categories || {}).forEach(function (category) {
+    categories[category] = unique_((previous.categories[category] || []).map(canonicalSourceUrl_).filter(Boolean));
+    if (previous.categoryEvidence && previous.categoryEvidence[category]) {
+      categoryEvidence[category] = previous.categoryEvidence[category];
+    }
+  });
+  Object.keys(currentCategories).forEach(function (category) {
+    const trustedCurrent = storedCategoryEvidenceIsTrusted_(category, currentCategories[category], currentEvidence[category]);
+    if (!previous.initializedAt || (isFreshCategorySnapshot_(categoryStatuses[category]) && trustedCurrent)) {
+      categories[category] = currentCategories[category].slice();
+      if (trustedCurrent) categoryEvidence[category] = currentEvidence[category];
+    }
+  });
+
+  const history = [];
+  Object.keys(previous.categories || {}).forEach(function (category) {
+    Array.prototype.push.apply(history, previous.categories[category] || []);
+  });
+  Array.prototype.push.apply(history, previous.historyUrls || []);
+  Object.keys(categories).forEach(function (category) {
+    Array.prototype.push.apply(history, categories[category] || []);
+  });
+  Array.prototype.push.apply(history, historicalUrls || []);
+
+  const pending = normalizePendingDiscoveryCandidates_(pendingCandidates || previous.pendingCandidates || previous.pendingUrls || []);
   return {
     version: RV.DISCOVERY_STATE_VERSION,
     initializedAt: previous.initializedAt || now,
     updatedAt: now,
-    categories: discoverySnapshotByLabel_(items),
-    pendingUrls: unique_((pendingUrls || []).map(canonicalSourceUrl_).filter(Boolean)).slice(0, 1000)
+    categories: categories,
+    categoryEvidence: categoryEvidence,
+    categoryStatuses: categoryStatuses,
+    historyUrls: unique_(history.map(canonicalSourceUrl_).filter(Boolean).reverse()).reverse().slice(-RV.DISCOVERY_HISTORY_URL_LIMIT),
+    pendingCandidates: pending,
+    pendingUrls: Object.keys(pending).slice(0, 1000)
   };
 }
 
@@ -2307,10 +3023,16 @@ function createDiscoveryState_(items, pendingUrls, previousState) {
 function classifyDiscoveryDelta_(items, seenUrls, registry, state) {
   const currentCategories = discoverySnapshotByLabel_(items);
   const previousCategories = (state && state.categories) || {};
+  const categoryStatuses = discoveryCategoryStatusByLabel_(items);
+  const currentCategoryEvidence = discoveryCategoryEvidenceByLabel_(items);
+  const previousCategoryEvidence = (state && state.categoryEvidence) || {};
   const itemByUrl = {};
+  const itemByCategoryUrl = {};
   (items || []).forEach(function (item) {
     const url = canonicalSourceUrl_(item && item.url);
+    const category = normalizeFeedCategory_(item && (item.category || item.label));
     if (url && !itemByUrl[url]) itemByUrl[url] = item;
+    if (url && category) itemByCategoryUrl[category + '|' + url] = item;
   });
 
   const completed = {};
@@ -2321,54 +3043,149 @@ function classifyDiscoveryDelta_(items, seenUrls, registry, state) {
   Object.keys(registry || {}).forEach(function (url) {
     const canonicalUrl = canonicalSourceUrl_(url);
     if (canonicalUrl) completed[canonicalUrl] = true;
+    const entryUrl = canonicalSourceUrl_(registry[url] && registry[url].sourceUrl || '');
+    if (entryUrl) completed[entryUrl] = true;
   });
 
-  const pendingUrls = [];
-  const pendingMap = {};
-  unique_((state && state.pendingUrls) || []).forEach(function (url) {
+  const historicalSet = {};
+  (state && state.historyUrls || []).forEach(function (url) {
     const canonicalUrl = canonicalSourceUrl_(url);
-    if (!canonicalUrl || completed[canonicalUrl] || pendingMap[canonicalUrl]) return;
-    pendingMap[canonicalUrl] = true;
-    pendingUrls.push(canonicalUrl);
+    if (canonicalUrl) historicalSet[canonicalUrl] = true;
+  });
+  Object.keys(previousCategories).forEach(function (category) {
+    (previousCategories[category] || []).forEach(function (url) {
+      const canonicalUrl = canonicalSourceUrl_(url);
+      if (canonicalUrl) historicalSet[canonicalUrl] = true;
+    });
+  });
+
+  const pendingCandidates = normalizePendingDiscoveryCandidates_(
+    state && (state.pendingCandidates || state.pendingUrls) || {}
+  );
+  Object.keys(pendingCandidates).forEach(function (url) {
+    if (completed[url]) delete pendingCandidates[url];
   });
 
   const historicalUrls = [];
+  const readyUrls = [];
+  const readyMap = {};
+
+  function markReady(url, category, previousSnapshot, currentUrls, frontierProof) {
+    const alreadyPending = !!pendingCandidates[url];
+    if (!pendingCandidates[url]) {
+      pendingCandidates[url] = {
+        url: url,
+        categories: [],
+        firstDetectedAt: new Date().toISOString(),
+        lastDecision: '',
+        lastReason: '',
+        lastEvaluatedAt: ''
+      };
+    }
+    const pending = pendingCandidates[url];
+    if (!alreadyPending) {
+      pending.frontierConfirmed = frontierProof && frontierProof.confirmed === true;
+      pending.frontierReason = cleanText_(frontierProof && frontierProof.reason || 'frontier provenance was not confirmed');
+      pending.frontierCategory = category;
+      pending.frontierPreviousSnapshotHash = cleanText_(frontierProof && frontierProof.previousSnapshotHash || '').toLowerCase();
+      pending.frontierCurrentSnapshotHash = cleanText_(frontierProof && frontierProof.currentSnapshotHash || '').toLowerCase();
+      pending.frontierAnchorUrl = canonicalSourceUrl_(frontierProof && frontierProof.anchorUrl || '');
+    }
+    if (pending.categories.indexOf(category) === -1) pending.categories.push(category);
+    if (!readyMap[url]) {
+      readyMap[url] = {
+        category: category,
+        previousSnapshot: previousSnapshot.slice(),
+        frontierConfirmed: pending.frontierConfirmed === true,
+        frontierReason: pending.frontierReason,
+        frontierPreviousSnapshotHash: pending.frontierPreviousSnapshotHash,
+        frontierCurrentSnapshotHash: pending.frontierCurrentSnapshotHash,
+        frontierAnchorUrl: pending.frontierAnchorUrl,
+        previousStateValid: storedCategoryEvidenceIsTrusted_(category, previousSnapshot, previousCategoryEvidence[category]),
+        authoritativeCategorySource: currentCategoryEvidence[category] && currentCategoryEvidence[category].trusted === true,
+        historyClearAtDetection: true,
+        registryClearAtDetection: true,
+        nearbyItems: currentUrls.slice(0, 10).map(function (nearbyUrl) {
+          const nearby = itemByCategoryUrl[category + '|' + nearbyUrl] || itemByUrl[nearbyUrl] || {};
+          return { url: nearbyUrl, title: cleanText_(nearby.title || '') };
+        })
+      };
+      readyUrls.push(url);
+    }
+  }
+
   Object.keys(currentCategories).forEach(function (label) {
+    if (!isFreshCategorySnapshot_(categoryStatuses[label])) return;
     const currentUrls = currentCategories[label];
+    const previousSnapshot = previousCategories[label] || [];
     const previousSet = {};
-    (previousCategories[label] || []).forEach(function (url) {
+    previousSnapshot.forEach(function (url) {
       const canonicalUrl = canonicalSourceUrl_(url);
       if (canonicalUrl) previousSet[canonicalUrl] = true;
     });
 
     let anchorIndex = -1;
     for (let i = 0; i < currentUrls.length; i++) {
-      if (previousSet[currentUrls[i]] && !pendingMap[currentUrls[i]]) {
+      if (previousSet[currentUrls[i]] && !pendingCandidates[currentUrls[i]]) {
         anchorIndex = i;
         break;
       }
     }
 
-    const newlyDetected = [];
-    currentUrls.forEach(function (url, index) {
-      if (completed[url] || pendingMap[url]) return;
-      if (anchorIndex >= 0 && index < anchorIndex) newlyDetected.push(url);
-      else historicalUrls.push(url);
-    });
+    const previousEvidence = previousCategoryEvidence[label] || {};
+    const currentEvidence = currentCategoryEvidence[label] || {};
+    const previousEvidenceTrusted = storedCategoryEvidenceIsTrusted_(label, previousSnapshot, previousEvidence);
+    const currentEvidenceTrusted = storedCategoryEvidenceIsTrusted_(label, currentUrls, currentEvidence);
+    const lineage = currentEvidence.ancestorSnapshotHashes || [];
+    const lineageMatches = !!previousEvidence.snapshotHash &&
+      (currentEvidence.previousSnapshotHash === previousEvidence.snapshotHash || lineage.indexOf(previousEvidence.snapshotHash) !== -1);
+    const transitionTrusted = previousEvidenceTrusted && currentEvidenceTrusted && lineageMatches &&
+      currentEvidence.transitionStatus === 'authoritative_transition';
+    const frontierProof = {
+      confirmed: transitionTrusted && anchorIndex >= 0,
+      reason: transitionTrusted && anchorIndex >= 0 ?
+        'NEW_FRONTIER_CONFIRMED by authoritative category snapshot lineage and surviving anchor' :
+        (!previousEvidenceTrusted ? 'previous V2 category snapshot lacks trusted provenance' :
+          (!currentEvidenceTrusted ? 'current category snapshot provenance is invalid' :
+            (!lineageMatches ? 'current snapshot lineage does not include the persisted previous snapshot' :
+              (anchorIndex < 0 ? 'no surviving previous-category anchor' : 'collector did not report an authoritative transition')))),
+      previousSnapshotHash: previousEvidence.snapshotHash || '',
+      currentSnapshotHash: currentEvidence.snapshotHash || '',
+      anchorUrl: anchorIndex >= 0 ? currentUrls[anchorIndex] : ''
+    };
 
-    // Feed order is latest-first; queue a same-run prefix oldest-first so a
-    // multi-item burst is drafted chronologically without reading from the tail.
-    newlyDetected.reverse().forEach(function (url) {
-      if (pendingMap[url]) return;
-      pendingMap[url] = true;
-      pendingUrls.push(url);
+    currentUrls.forEach(function (url, index) {
+      if (completed[url]) return;
+      if (pendingCandidates[url]) {
+        markReady(url, label, previousSnapshot, currentUrls, frontierProof);
+        return;
+      }
+      if (historicalSet[url]) {
+        historicalUrls.push(url);
+        return;
+      }
+      if (anchorIndex >= 0 && index < anchorIndex) {
+        markReady(url, label, previousSnapshot, currentUrls, frontierProof);
+      } else if (anchorIndex < 0) {
+        markReady(url, label, previousSnapshot, currentUrls, frontierProof);
+      } else {
+        historicalUrls.push(url);
+      }
     });
   });
 
   return {
-    pendingUrls: pendingUrls,
+    pendingCandidates: pendingCandidates,
+    pendingUrls: Object.keys(pendingCandidates),
     historicalUrls: unique_(historicalUrls),
-    readyItems: pendingUrls.map(function (url) { return itemByUrl[url]; }).filter(Boolean)
+    readyItems: readyUrls.map(function (url) {
+      const item = itemByUrl[url];
+      if (!item) return null;
+      const copy = {};
+      Object.keys(item).forEach(function (key) { copy[key] = item[key]; });
+      copy.discoveryContext = readyMap[url];
+      return copy;
+    }).filter(Boolean)
   };
 }
 
