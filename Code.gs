@@ -26,6 +26,8 @@ const RV = Object.freeze({
   UPDATE_CHECKS_PER_RUN: 8,
   SEEN_KEY: 'RV_SEEN_SOURCE_URLS',
   SEEN_PREFIX: 'RV_SEEN_CHUNK_',
+  DISCOVERY_STATE_PREFIX: 'RV_DISCOVERY_STATE_CHUNK_',
+  DISCOVERY_STATE_VERSION: 1,
   REGISTRY_PREFIX: 'RV_REGISTRY_CHUNK_',
   UPDATE_CURSOR_KEY: 'RV_UPDATE_CURSOR',
   BLOG_ID_KEY: 'RV_BLOGGER_BLOG_ID',
@@ -34,6 +36,9 @@ const RV = Object.freeze({
   REVIEW_PREFIX: 'UPDATE REVIEW – ',
   APPROVED_PREFIX: 'APPROVED UPDATE – ',
   APPLIED_PREFIX: 'APPLIED UPDATE – ',
+  UPDATE_APPROVAL_ACTION: 'approveUpdate',
+  UPDATE_APPROVAL_SECRET_KEY: 'RV_UPDATE_APPROVAL_SECRET_V1',
+  UPDATE_APPROVAL_VERSION: '1',
   TELEGRAM: 'https://t.me/rojgarvigyapan',
   WHATSAPP: 'https://whatsapp.com/channel/0029VaAVxN7BA1et899BiK1f',
   TOOLS: 'https://rojgarvigyapan.blogspot.com/p/online-tools.html',
@@ -58,6 +63,7 @@ function setupAutomation() {
     throw new Error('V4 discovery feed returned 0 Sarkari Result URLs. Existing baseline was NOT changed. Check DISCOVERY_FEED_URL or use TEST_SOURCE_URL for a manual test.');
   }
   saveSeen_(current.map(function (item) { return item.url; }));
+  saveDiscoveryState_(createDiscoveryState_(current, []));
 
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (trigger.getHandlerFunction() === RV.TRIGGER_FUNCTION) {
@@ -161,22 +167,53 @@ function checkNewSarkariResultPosts() {
     const config = getConfig_();
     const discovered = discoverSourcePosts_();
     const seen = loadSeen_();
-    const seenMap = {};
-    seen.forEach(function (url) { seenMap[url] = true; });
-
-    const pending = discovered.filter(function (item) {
-      return !seenMap[item.url];
-    }).reverse().slice(0, config.maxPostsPerRun);
-
     const registry = loadRegistry_();
+    let discoveryState = loadDiscoveryState_();
+
+    if (!discovered.length) {
+      Logger.log('Discovery feed returned 0 usable URLs. Existing baseline was preserved.');
+      applyApprovedUpdates_(registry, config);
+      checkTrackedSourceUpdates_(registry, config, discovered);
+      saveRegistry_(registry);
+      return;
+    }
+
+    // A missing discovery baseline means bootstrap, not "every URL is new".
+    // This state is separate from the tracked-post registry so update checks
+    // continue below regardless of the source post's original age.
+    if (!isDiscoveryStateInitialized_(discoveryState)) {
+      const baselineUrls = discovered.map(function (item) { return item.url; });
+      saveSeen_(seen.concat(baselineUrls));
+      saveDiscoveryState_(createDiscoveryState_(discovered, []));
+      Logger.log('Discovery baseline initialized with %s current feed URLs. No new Blogger drafts were created.', baselineUrls.length);
+      applyApprovedUpdates_(registry, config);
+      checkTrackedSourceUpdates_(registry, config, discovered);
+      saveRegistry_(registry);
+      return;
+    }
+
+    const decision = classifyDiscoveryDelta_(discovered, seen, registry, discoveryState);
+    const updatedSeen = unique_(seen.concat(decision.historicalUrls));
+    saveSeen_(updatedSeen);
+    discoveryState = createDiscoveryState_(discovered, decision.pendingUrls, discoveryState);
+    saveDiscoveryState_(discoveryState);
+
+    if (decision.historicalUrls.length) {
+      Logger.log('Baselined %s unseen non-head feed URLs without creating drafts.', decision.historicalUrls.length);
+    }
+
+    const pending = decision.readyItems.slice(0, config.maxPostsPerRun);
     pending.forEach(function (item) {
       try {
         const created = processSourcePost_(item, config);
         registry[item.url] = createRegistryEntry_(item, created);
         saveRegistry_(registry);
-        seen.push(item.url);
-        seenMap[item.url] = true;
-        saveSeen_(seen);
+        updatedSeen.push(item.url);
+        saveSeen_(updatedSeen);
+        discoveryState.pendingUrls = discoveryState.pendingUrls.filter(function (url) {
+          return url !== item.url;
+        });
+        saveDiscoveryState_(discoveryState);
         Logger.log('Draft created: %s', created.bloggerPost.url || created.bloggerPost.id);
       } catch (error) {
         Logger.log('Skipped %s — %s', item.url, error.message);
@@ -202,11 +239,12 @@ function stopAutomation() {
   Logger.log('Automation stopped.');
 }
 
-/** Clears the baseline. The next run may treat currently listed posts as new. */
+/** Clears discovery state. The next automatic run safely baselines the current feed. */
 function resetSeenPosts() {
   deleteJsonChunks_(RV.SEEN_PREFIX);
+  deleteJsonChunks_(RV.DISCOVERY_STATE_PREFIX);
   PropertiesService.getScriptProperties().deleteProperty(RV.SEEN_KEY);
-  Logger.log('Seen URL baseline cleared. Run setupAutomation() again.');
+  Logger.log('Discovery baseline cleared. The next automatic run will baseline the current feed without creating drafts.');
 }
 
 /**
@@ -306,7 +344,10 @@ function discoverSourcePosts_() {
   });
 
   Logger.log('V4 discovery feed: %s URLs received, %s accepted.', rawItems.length, results.length);
-  return results.sort(function (a, b) { return (b.publishedMs || 0) - (a.publishedMs || 0); });
+  // Feed order is authoritative for discovery-frontier comparison. The
+  // collector already preserves its category/search result order; discovered_at
+  // is a run timestamp, not proof of publication time.
+  return results;
 }
 
 function normalizeFeedLabel_(label) {
@@ -1336,7 +1377,11 @@ function checkTrackedSourceUpdates_(registry, config, discoveredItems) {
       );
       const currentHash = fingerprintSource_(source);
       entry.lastCheckedAt = new Date().toISOString();
-      if (currentHash === entry.sourceHash || currentHash === entry.candidateHash) continue;
+      if (currentHash === entry.sourceHash) continue;
+      if (currentHash === entry.candidateHash) {
+        ensurePendingReviewApprovalAction_(entry, config);
+        continue;
+      }
 
       const original = getBloggerPost_(entry.bloggerPostId, config);
       const updateLabel = detectCurrentLifecycleLabel_(source, entry.label, entry.sourceTitle || '');
@@ -1369,32 +1414,86 @@ function checkTrackedSourceUpdates_(registry, config, discoveredItems) {
 
 function upsertReviewDraft_(entry, generated, candidateHash, config) {
   const reviewTitle = RV.REVIEW_PREFIX + generated.title;
-  const reviewHtml = buildReviewNotice_(entry, generated.changeSummary, candidateHash) + generated.html;
-  const resource = {
-    kind: 'blogger#post',
-    blog: { id: String(getBlogId_(config.blogUrl)) },
-    title: reviewTitle,
-    content: reviewHtml,
-    labels: bloggerLabelsForPost_(generated)
-  };
-
   if (entry.reviewDraftId) {
     try {
       const existingReview = getBloggerPost_(entry.reviewDraftId, config);
       if (String(existingReview.status || '').toLowerCase() === 'draft' &&
-          String(existingReview.title || '').indexOf(RV.APPROVED_PREFIX) !== 0) {
-        return updateBloggerPost_(entry.reviewDraftId, resource, config);
+          String(existingReview.title || '').indexOf(RV.APPROVED_PREFIX) !== 0 &&
+          String(existingReview.title || '').indexOf(RV.APPLIED_PREFIX) !== 0) {
+        return writePendingReviewWithApproval_(
+          entry,
+          generated,
+          candidateHash,
+          String(existingReview.id),
+          config
+        );
       }
     } catch (error) {
       Logger.log('Previous review draft unavailable; creating a new one.');
     }
   }
 
-  return insertBloggerDraft_({
+  const provisional = insertBloggerDraft_({
     title: reviewTitle,
-    html: reviewHtml,
+    html: buildReviewNotice_(entry, generated, candidateHash, '', '') + generated.html,
     label: generated.label,
     labels: generated.labels
+  }, config);
+  entry.reviewDraftId = String(provisional.id);
+
+  try {
+    return writePendingReviewWithApproval_(
+      entry,
+      generated,
+      candidateHash,
+      entry.reviewDraftId,
+      config
+    );
+  } catch (error) {
+    // Keep the draft reference, but do not mark this source hash pending until
+    // the review has a usable signed approval action. A later run can retry.
+    entry.candidateHash = '';
+    throw error;
+  }
+}
+
+function writePendingReviewWithApproval_(entry, generated, candidateHash, reviewDraftId, config) {
+  const approvalUrl = buildUpdateApprovalUrl_(entry, reviewDraftId, candidateHash);
+  return updateBloggerPost_(reviewDraftId, {
+    kind: 'blogger#post',
+    blog: { id: String(getBlogId_(config.blogUrl)) },
+    title: RV.REVIEW_PREFIX + generated.title,
+    content: buildReviewNotice_(entry, generated, candidateHash, reviewDraftId, approvalUrl) + generated.html,
+    labels: bloggerLabelsForPost_(generated)
+  }, config);
+}
+
+function ensurePendingReviewApprovalAction_(entry, config) {
+  if (!entry || !entry.reviewDraftId || !entry.candidateHash) return;
+  const review = getBloggerPost_(entry.reviewDraftId, config);
+  if (String(review.status || '').toLowerCase() !== 'draft') return;
+  if (String(review.title || '').indexOf(RV.APPLIED_PREFIX) === 0) return;
+
+  const metadata = extractReviewMetadata_(review.content || '');
+  if (metadata && metadata.approvalAction === RV.UPDATE_APPROVAL_ACTION &&
+      String(metadata.reviewDraftId || '') === String(entry.reviewDraftId)) {
+    return;
+  }
+
+  const targetError = reviewTargetRejectionReason_(review, entry, entry.sourceUrl);
+  if (targetError) {
+    Logger.log('Pending review approval action rejected for safety: %s (%s)', review.id, targetError);
+    return;
+  }
+
+  const approvalUrl = buildUpdateApprovalUrl_(entry, entry.reviewDraftId, entry.candidateHash);
+  const updatedContent = injectApprovalActionIntoReviewNotice_(review.content || '', approvalUrl, entry.reviewDraftId);
+  updateBloggerPost_(entry.reviewDraftId, {
+    kind: 'blogger#post',
+    blog: { id: String(getBlogId_(config.blogUrl)) },
+    title: review.title,
+    content: updatedContent,
+    labels: review.labels || []
   }, config);
 }
 
@@ -1412,39 +1511,189 @@ function applyApprovedUpdates_(registry, config) {
         return;
       }
 
-      const cleanTitle = title.slice(RV.APPROVED_PREFIX.length).trim();
-      const cleanContent = stripReviewNotice_(review.content || '');
-      const original = getBloggerPost_(entry.bloggerPostId, config);
-      const existingLabels = mergeBloggerLabels_(original.labels || [], entry.labels || [entry.label]);
-      const pendingLabels = mergeBloggerLabels_(existingLabels, entry.pendingLabels || []);
-      const appliedLabels = mergeBloggerLabels_(pendingLabels, review.labels || []);
-      const updatedOriginal = updateBloggerPost_(entry.bloggerPostId, {
+      const targetError = reviewTargetRejectionReason_(review, entry, sourceUrl);
+      if (targetError) {
+        Logger.log('Approved review rejected for safety: %s (%s)', review.id, targetError);
+        return;
+      }
+      applyPendingReviewUpdate_(registry, sourceUrl, entry, review, config);
+    } catch (error) {
+      Logger.log('Approved update failed for %s — %s', sourceUrl, error.message);
+    }
+  });
+}
+
+function applyPendingReviewUpdate_(registry, sourceUrl, entry, review, config) {
+  const cleanTitle = proposedReviewTitle_(review.title || '');
+  const cleanContent = stripReviewNotice_(review.content || '');
+  const candidateHash = String(entry.candidateHash || '');
+  const reviewDraftId = String(entry.reviewDraftId || '');
+  let appliedLabels;
+  let updatedOriginal = null;
+
+  if (!candidateHash || !reviewDraftId) {
+    throw approvalRequestError_('security', 'Review is no longer pending.');
+  }
+
+  if (entry.appliedCandidateHash === candidateHash) {
+    // The original update already succeeded. Retry only review finalization.
+    appliedLabels = mergeBloggerLabels_(entry.labels || [entry.label], review.labels || []);
+  } else {
+    const original = getBloggerPost_(entry.bloggerPostId, config);
+    if (!original || String(original.id || '') !== String(entry.bloggerPostId || '')) {
+      throw approvalRequestError_('security', 'Original Blogger Post ID verification failed.');
+    }
+    const existingLabels = mergeBloggerLabels_(original.labels || [], entry.labels || [entry.label]);
+    const pendingLabels = mergeBloggerLabels_(existingLabels, entry.pendingLabels || []);
+    appliedLabels = mergeBloggerLabels_(pendingLabels, review.labels || []);
+
+    try {
+      updatedOriginal = updateBloggerPost_(entry.bloggerPostId, {
         kind: 'blogger#post',
         blog: { id: String(getBlogId_(config.blogUrl)) },
         title: cleanTitle,
         content: cleanContent,
         labels: appliedLabels
       }, config);
-
-      updateBloggerPost_(entry.reviewDraftId, {
-        kind: 'blogger#post',
-        blog: { id: String(getBlogId_(config.blogUrl)) },
-        title: RV.APPLIED_PREFIX + cleanTitle,
-        content: review.content,
-        labels: mergeBloggerLabels_(review.labels || [], appliedLabels)
-      }, config);
-
-      entry.sourceHash = entry.candidateHash;
-      entry.candidateHash = '';
-      entry.reviewDraftId = '';
-      entry.labels = appliedLabels;
-      entry.pendingLabels = [];
-      entry.lastAppliedAt = new Date().toISOString();
-      Logger.log('Original Blogger post updated: %s', updatedOriginal.url || updatedOriginal.id);
     } catch (error) {
-      Logger.log('Approved update failed for %s — %s', sourceUrl, error.message);
+      throw approvalRequestError_('original-update', 'The original Blogger post could not be updated.');
     }
-  });
+
+    // This checkpoint makes review finalization independently retryable and
+    // guarantees that a later click does not PUT the original post twice.
+    entry.appliedCandidateHash = candidateHash;
+    entry.sourceHash = candidateHash;
+    entry.labels = appliedLabels;
+    entry.pendingLabels = [];
+    entry.lastAppliedAt = new Date().toISOString();
+    saveRegistry_(registry);
+  }
+
+  try {
+    updateBloggerPost_(reviewDraftId, {
+      kind: 'blogger#post',
+      blog: { id: String(getBlogId_(config.blogUrl)) },
+      title: RV.APPLIED_PREFIX + cleanTitle,
+      content: markReviewNoticeApplied_(review.content, entry.bloggerPostId),
+      labels: mergeBloggerLabels_(review.labels || [], appliedLabels)
+    }, config);
+  } catch (error) {
+    throw approvalRequestError_('finalization', 'The original post was updated, but the review could not be finalized.');
+  }
+
+  entry.sourceHash = candidateHash;
+  entry.lastAppliedReviewDraftId = reviewDraftId;
+  entry.lastAppliedCandidateHash = candidateHash;
+  entry.candidateHash = '';
+  entry.reviewDraftId = '';
+  entry.appliedCandidateHash = '';
+  entry.labels = appliedLabels;
+  entry.pendingLabels = [];
+  entry.lastAppliedAt = new Date().toISOString();
+  saveRegistry_(registry);
+  Logger.log('Original Blogger post updated: %s', updatedOriginal ? (updatedOriginal.url || updatedOriginal.id) : entry.bloggerPostId);
+  return { status: 'applied', bloggerPostId: String(entry.bloggerPostId) };
+}
+
+function handleRojgarUpdateApprovalRequest_(e) {
+  try {
+    const result = approveRojgarUpdateRequest_(e && e.parameter || {});
+    if (result.status === 'already-applied') {
+      return buildUpdateApprovalResponse_(true, 'This update was already applied to the original post. No duplicate update was made.');
+    }
+    return buildUpdateApprovalResponse_(true, 'Update applied successfully to the original post.');
+  } catch (error) {
+    Logger.log('One-click update approval failed: %s', error.message);
+    if (error && error.rvApprovalKind === 'finalization') {
+      return buildUpdateApprovalResponse_(false, 'The original post was updated, but the review still needs finalization. Click the same approval button again; the original post will not be updated twice.');
+    }
+    if (error && error.rvApprovalKind === 'original-update') {
+      return buildUpdateApprovalResponse_(false, 'The original post could not be updated. The review is still pending and this approval can be retried safely.');
+    }
+    return buildUpdateApprovalResponse_(false, 'This approval link is invalid, altered, expired, or no longer pending. No Blogger post was changed.');
+  }
+}
+
+function approveRojgarUpdateRequest_(params) {
+  const reviewDraftId = String(params && params.review || '').trim();
+  const token = String(params && params.token || '').trim().toLowerCase();
+  if (!/^\d+$/.test(reviewDraftId) || !/^[a-f0-9]{64}$/.test(token)) {
+    throw approvalRequestError_('security', 'Malformed approval request.');
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) {
+    throw approvalRequestError_('busy', 'Another automation operation is running.');
+  }
+
+  try {
+    const registry = loadRegistry_();
+    const match = findRegistryReviewEntry_(registry, reviewDraftId);
+    if (!match) throw approvalRequestError_('security', 'Review draft is not registered.');
+
+    const entry = match.entry;
+    if (match.alreadyApplied) {
+      const priorHash = String(entry.lastAppliedCandidateHash || '');
+      if (!priorHash || !isValidUpdateApprovalToken_(token, entry, reviewDraftId, priorHash)) {
+        throw approvalRequestError_('security', 'Approval token does not match the applied review.');
+      }
+      return { status: 'already-applied', bloggerPostId: String(entry.bloggerPostId || '') };
+    }
+
+    if (!entry.candidateHash || String(entry.reviewDraftId || '') !== reviewDraftId) {
+      throw approvalRequestError_('security', 'Review is not pending.');
+    }
+    if (!isValidUpdateApprovalToken_(token, entry, reviewDraftId, entry.candidateHash)) {
+      throw approvalRequestError_('security', 'Approval token is invalid.');
+    }
+
+    const config = getApprovalBloggerConfig_();
+    const review = getBloggerPost_(reviewDraftId, config);
+    if (String(review.status || '').toLowerCase() !== 'draft') {
+      throw approvalRequestError_('security', 'Review must remain a draft.');
+    }
+    if (String(review.title || '').indexOf(RV.APPLIED_PREFIX) === 0) {
+      throw approvalRequestError_('security', 'Review is already applied.');
+    }
+
+    const targetError = approvalReviewRejectionReason_(review, entry, match.sourceUrl);
+    if (targetError) throw approvalRequestError_('security', targetError);
+    return applyPendingReviewUpdate_(registry, match.sourceUrl, entry, review, config);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function findRegistryReviewEntry_(registry, reviewDraftId) {
+  const urls = Object.keys(registry || {});
+  for (let index = 0; index < urls.length; index++) {
+    const entry = registry[urls[index]] || {};
+    if (String(entry.reviewDraftId || '') === reviewDraftId) {
+      return { sourceUrl: urls[index], entry: entry, alreadyApplied: false };
+    }
+    if (String(entry.lastAppliedReviewDraftId || '') === reviewDraftId) {
+      return { sourceUrl: urls[index], entry: entry, alreadyApplied: true };
+    }
+  }
+  return null;
+}
+
+function getApprovalBloggerConfig_() {
+  const blogUrl = PropertiesService.getScriptProperties().getProperty('BLOG_URL') || RV.BLOG_URL;
+  return { blogUrl: normalizeBlogUrl_(blogUrl) };
+}
+
+function approvalRequestError_(kind, message) {
+  const error = new Error(message);
+  error.rvApprovalKind = kind;
+  return error;
+}
+
+function proposedReviewTitle_(title) {
+  const value = String(title || '');
+  if (value.indexOf(RV.APPROVED_PREFIX) === 0) return value.slice(RV.APPROVED_PREFIX.length).trim();
+  if (value.indexOf(RV.REVIEW_PREFIX) === 0) return value.slice(RV.REVIEW_PREFIX.length).trim();
+  throw approvalRequestError_('security', 'Review title marker is invalid.');
 }
 
 function getBloggerPost_(postId, config) {
@@ -1466,16 +1715,199 @@ function updateBloggerPost_(postId, resource, config) {
   return JSON.parse(response.getContentText());
 }
 
-function buildReviewNotice_(entry, changeSummary, candidateHash) {
+function buildUpdateApprovalUrl_(entry, reviewDraftId, candidateHash) {
+  const serviceUrl = String(ScriptApp.getService().getUrl() || '').trim();
+  if (!/^https:\/\//i.test(serviceUrl)) {
+    throw new Error('Apps Script web app is not deployed; approval button URL cannot be created.');
+  }
+  const token = buildUpdateApprovalToken_(entry, reviewDraftId, candidateHash);
+  return serviceUrl + (serviceUrl.indexOf('?') === -1 ? '?' : '&') +
+    'action=' + encodeURIComponent(RV.UPDATE_APPROVAL_ACTION) +
+    '&review=' + encodeURIComponent(String(reviewDraftId || '')) +
+    '&token=' + encodeURIComponent(token);
+}
+
+function buildUpdateApprovalToken_(entry, reviewDraftId, candidateHash) {
+  const secret = getOrCreateUpdateApprovalSecret_();
+  const payload = updateApprovalTokenPayload_(entry, reviewDraftId, candidateHash);
+  const signature = Utilities.computeHmacSha256Signature(
+    payload,
+    secret,
+    Utilities.Charset.UTF_8
+  );
+  return bytesToHex_(signature);
+}
+
+function isValidUpdateApprovalToken_(token, entry, reviewDraftId, candidateHash) {
+  const expected = buildUpdateApprovalToken_(entry, reviewDraftId, candidateHash);
+  return constantTimeTextEqual_(String(token || '').toLowerCase(), expected);
+}
+
+function updateApprovalTokenPayload_(entry, reviewDraftId, candidateHash) {
+  return [
+    RV.UPDATE_APPROVAL_VERSION,
+    String(reviewDraftId || ''),
+    String(entry && entry.bloggerPostId || ''),
+    canonicalSourceUrl_(entry && entry.sourceUrl || ''),
+    String(candidateHash || '')
+  ].join('\n');
+}
+
+function getOrCreateUpdateApprovalSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let secret = String(props.getProperty(RV.UPDATE_APPROVAL_SECRET_KEY) || '').trim();
+  if (!secret) {
+    secret = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+    props.setProperty(RV.UPDATE_APPROVAL_SECRET_KEY, secret);
+  }
+  return secret;
+}
+
+function bytesToHex_(bytes) {
+  return (bytes || []).map(function (byte) {
+    const value = byte < 0 ? byte + 256 : byte;
+    return ('0' + value.toString(16)).slice(-2);
+  }).join('');
+}
+
+function constantTimeTextEqual_(a, b) {
+  a = String(a || '');
+  b = String(b || '');
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < a.length; index++) {
+    mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return mismatch === 0;
+}
+
+function buildApprovalActionMarkup_(approvalUrl, reviewDraftId) {
+  if (!approvalUrl || !reviewDraftId) {
+    return '<p style="margin:0" data-rv-approval-button-wrapper="1"><b>Approval:</b> Secure approval link is being prepared. Keep this review as a draft.</p>';
+  }
+  return '<p style="margin:14px 0 0" data-rv-approval-button-wrapper="1">' +
+    '<a href="' + escapeHtml_(approvalUrl) + '" target="_blank" rel="noopener noreferrer" ' +
+    'style="display:inline-block;background:#e60099;color:#fff;text-decoration:none;font-weight:800;padding:12px 20px;border-radius:8px">Approve Update</a>' +
+    '</p>' +
+    '<span style="display:none" data-rv-approval-action="' + escapeHtml_(RV.UPDATE_APPROVAL_ACTION) +
+    '" data-rv-review-draft-id="' + escapeHtml_(reviewDraftId) + '"></span>';
+}
+
+function injectApprovalActionIntoReviewNotice_(html, approvalUrl, reviewDraftId) {
+  const value = String(html || '');
+  const action = buildApprovalActionMarkup_(approvalUrl, reviewDraftId);
+  if (!/<!-- RV_UPDATE_REVIEW_START -->[\s\S]*?<!-- RV_UPDATE_REVIEW_END -->/i.test(value)) {
+    throw approvalRequestError_('security', 'Review notice is missing.');
+  }
+  if (/<p\b[^>]*data-rv-approval-button-wrapper="1"[^>]*>[\s\S]*?<\/p>/i.test(value)) {
+    return value
+      .replace(/<p\b[^>]*data-rv-approval-button-wrapper="1"[^>]*>[\s\S]*?<\/p>(?:\s*<span\b[^>]*data-rv-approval-action=[\s\S]*?<\/span>)?/i, action);
+  }
+  if (/<p style="margin:0"><b>Approve with one action:<\/b>[\s\S]*?<\/p>/i.test(value)) {
+    return value.replace(/<p style="margin:0"><b>Approve with one action:<\/b>[\s\S]*?<\/p>/i, action);
+  }
+  return value.replace(/<\/div>\s*<!-- RV_UPDATE_REVIEW_END -->/i, action + '</div><!-- RV_UPDATE_REVIEW_END -->');
+}
+
+function buildUpdateApprovalResponse_(success, message) {
+  const color = success ? '#168c4d' : '#b42318';
+  const title = success ? 'Update approval complete' : 'Update approval not completed';
+  return HtmlService.createHtmlOutput(
+    '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + escapeHtml_(title) + '</title></head><body style="margin:0;background:#f6f7fb;font-family:Arial,sans-serif">' +
+    '<main style="max-width:620px;margin:60px auto;background:#fff;border:1px solid #e2e4ec;border-radius:14px;padding:24px">' +
+    '<h2 style="margin:0 0 12px;color:' + color + '">' + escapeHtml_(title) + '</h2>' +
+    '<p style="margin:0;line-height:1.6">' + escapeHtml_(message) + '</p>' +
+    '</main></body></html>'
+  ).setTitle(title);
+}
+
+function buildReviewNotice_(entry, generated, candidateHash, reviewDraftId, approvalUrl) {
+  const existingLabels = mergeBloggerLabels_(entry.labels || [], [entry.label]);
+  const existingMap = {};
+  existingLabels.forEach(function (label) { existingMap[cleanText_(label).toLowerCase()] = true; });
+  const addedLabels = [generated.label].filter(function (label) {
+    return !existingMap[cleanText_(label).toLowerCase()];
+  });
+  const labelsText = addedLabels.length ? addedLabels.join(', ') : 'No new label';
   return '<!-- RV_UPDATE_REVIEW_START -->' +
     '<div style="border:2px solid #e60099;background:#fff4fb;padding:16px;margin:0 0 20px;border-radius:12px;font-family:Arial,sans-serif">' +
     '<h3 style="margin:0 0 8px;color:#e60099">Update Review Required</h3>' +
-    '<p style="margin:0 0 8px"><b>Detected changes:</b> ' + escapeHtml_(changeSummary || 'Source page updated') + '</p>' +
+    '<p style="margin:0 0 8px"><b>Original Blogger Post ID:</b> ' + escapeHtml_(entry.bloggerPostId || '') + '</p>' +
+    '<p style="margin:0 0 8px"><b>Update type:</b> ' + escapeHtml_(generated.label || '') + '</p>' +
+    '<p style="margin:0 0 8px"><b>Labels to add:</b> ' + escapeHtml_(labelsText) + '</p>' +
+    '<p style="margin:0 0 8px"><b>Proposed title:</b> ' + escapeHtml_(generated.title || '') + '</p>' +
+    '<p style="margin:0 0 8px"><b>Detected changes:</b> ' + escapeHtml_(generated.changeSummary || 'Source page updated') + '</p>' +
     '<p style="margin:0 0 8px"><b>Source:</b> <a href="' + escapeHtml_(entry.sourceUrl) + '">' + escapeHtml_(entry.sourceUrl) + '</a></p>' +
-    '<p style="margin:0"><b>Approve:</b> Draft title में <code>UPDATE REVIEW –</code> को <code>APPROVED UPDATE –</code> से replace करके draft save करें। इसे publish न करें।</p>' +
-    '<span style="display:none" data-rv-candidate-hash="' + escapeHtml_(candidateHash) + '"></span>' +
+    '<p style="margin:0 0 8px"><b>Proposed content:</b> The complete updated article appears below this notice.</p>' +
+    '<p style="margin:0 0 8px"><b>Approval status:</b> Pending approval</p>' +
+    buildApprovalActionMarkup_(approvalUrl, reviewDraftId) +
+    '<span style="display:none" data-rv-candidate-hash="' + escapeHtml_(candidateHash) +
+    '" data-rv-original-post-id="' + escapeHtml_(entry.bloggerPostId || '') +
+    '" data-rv-source-url="' + escapeHtml_(entry.sourceUrl || '') + '"></span>' +
     '</div>' +
     '<!-- RV_UPDATE_REVIEW_END -->';
+}
+
+function extractReviewMetadata_(html) {
+  const value = String(html || '');
+  const notice = value.match(/<!-- RV_UPDATE_REVIEW_START -->([\s\S]*?)<!-- RV_UPDATE_REVIEW_END -->/i);
+  if (!notice) return null;
+
+  function attribute(name) {
+    const match = notice[1].match(new RegExp("\\b" + name + "\\s*=\\s*([\"'])((?:.|\\n|\\r)*?)\\1", 'i'));
+    return match ? decodeEntities_(match[2]) : '';
+  }
+
+  const legacySource = value.match(/<!--\s*RV_SOURCE_URL:\s*([\s\S]*?)\s*-->/i);
+  return {
+    candidateHash: attribute('data-rv-candidate-hash'),
+    originalPostId: attribute('data-rv-original-post-id'),
+    sourceUrl: attribute('data-rv-source-url') || (legacySource ? cleanText_(legacySource[1]) : ''),
+    approvalAction: attribute('data-rv-approval-action'),
+    reviewDraftId: attribute('data-rv-review-draft-id')
+  };
+}
+
+function reviewTargetRejectionReason_(review, entry, sourceUrl) {
+  if (String(review && review.id || '') !== String(entry && entry.reviewDraftId || '')) {
+    return 'review draft ID does not match registry';
+  }
+  const metadata = extractReviewMetadata_(review && review.content || '');
+  if (!metadata) return 'review metadata block is missing';
+  if (!metadata.candidateHash || metadata.candidateHash !== String(entry.candidateHash || '')) {
+    return 'candidate hash does not match registry';
+  }
+  if (!metadata.originalPostId || metadata.originalPostId !== String(entry.bloggerPostId || '')) {
+    return 'original Blogger Post ID does not match registry';
+  }
+  if (canonicalSourceUrl_(metadata.sourceUrl) !== canonicalSourceUrl_(sourceUrl)) {
+    return 'source URL does not match registry';
+  }
+  return '';
+}
+
+function approvalReviewRejectionReason_(review, entry, sourceUrl) {
+  const targetError = reviewTargetRejectionReason_(review, entry, sourceUrl);
+  if (targetError) return targetError;
+  const metadata = extractReviewMetadata_(review && review.content || '');
+  if (!metadata || metadata.approvalAction !== RV.UPDATE_APPROVAL_ACTION) {
+    return 'review approval action marker is missing';
+  }
+  if (String(metadata.reviewDraftId || '') !== String(entry.reviewDraftId || '')) {
+    return 'approval review draft ID does not match registry';
+  }
+  return '';
+}
+
+function markReviewNoticeApplied_(html, bloggerPostId) {
+  return String(html || '')
+    .replace('<b>Approval status:</b> Pending approval',
+      '<b>Approval status:</b> Applied to original Blogger Post ID ' + escapeHtml_(bloggerPostId || ''))
+    .replace(/<p\b[^>]*data-rv-approval-button-wrapper="1"[^>]*>[\s\S]*?<\/p>/i,
+      '<p style="margin:0"><b>Applied:</b> The approved content was automatically sent to the original Blogger post. This review draft was not published.</p>')
+    .replace(/<p style="margin:0"><b>Approve with one action:<\/b>[\s\S]*?<\/p>/i,
+      '<p style="margin:0"><b>Applied:</b> The approved content was automatically sent to the original Blogger post. This review draft was not published.</p>');
 }
 
 function stripReviewNotice_(html) {
@@ -1497,6 +1929,9 @@ function createRegistryEntry_(item, result) {
     sourceHash: result.sourceHash,
     reviewDraftId: '',
     candidateHash: '',
+    appliedCandidateHash: '',
+    lastAppliedReviewDraftId: '',
+    lastAppliedCandidateHash: '',
     createdAt: new Date().toISOString(),
     lastCheckedAt: ''
   };
@@ -1829,6 +2264,119 @@ function extractOpenAIOutputText_(data) {
     }
   }
   return '';
+}
+
+function discoverySnapshotByLabel_(items) {
+  const categories = {};
+  const used = {};
+  (items || []).forEach(function (item) {
+    const url = canonicalSourceUrl_(item && item.url);
+    if (!url || used[url]) return;
+    used[url] = true;
+    const label = cleanText_(item && item.label) || 'Latest Jobs';
+    if (!categories[label]) categories[label] = [];
+    categories[label].push(url);
+  });
+  return categories;
+}
+
+function isDiscoveryStateInitialized_(state) {
+  return !!(state && Number(state.version) === RV.DISCOVERY_STATE_VERSION &&
+    state.categories && typeof state.categories === 'object' && !Array.isArray(state.categories));
+}
+
+function createDiscoveryState_(items, pendingUrls, previousState) {
+  const previous = isDiscoveryStateInitialized_(previousState) ? previousState : {};
+  const now = new Date().toISOString();
+  return {
+    version: RV.DISCOVERY_STATE_VERSION,
+    initializedAt: previous.initializedAt || now,
+    updatedAt: now,
+    categories: discoverySnapshotByLabel_(items),
+    pendingUrls: unique_((pendingUrls || []).map(canonicalSourceUrl_).filter(Boolean)).slice(0, 1000)
+  };
+}
+
+/**
+ * Compares ordered category snapshots. Only an unseen contiguous prefix before
+ * the first surviving prior-feed anchor is eligible as genuinely new. Unseen
+ * URLs below that anchor (or in a category with no anchor) are historical
+ * recovery/backfill and are silently baselined.
+ */
+function classifyDiscoveryDelta_(items, seenUrls, registry, state) {
+  const currentCategories = discoverySnapshotByLabel_(items);
+  const previousCategories = (state && state.categories) || {};
+  const itemByUrl = {};
+  (items || []).forEach(function (item) {
+    const url = canonicalSourceUrl_(item && item.url);
+    if (url && !itemByUrl[url]) itemByUrl[url] = item;
+  });
+
+  const completed = {};
+  (seenUrls || []).forEach(function (url) {
+    const canonicalUrl = canonicalSourceUrl_(url);
+    if (canonicalUrl) completed[canonicalUrl] = true;
+  });
+  Object.keys(registry || {}).forEach(function (url) {
+    const canonicalUrl = canonicalSourceUrl_(url);
+    if (canonicalUrl) completed[canonicalUrl] = true;
+  });
+
+  const pendingUrls = [];
+  const pendingMap = {};
+  unique_((state && state.pendingUrls) || []).forEach(function (url) {
+    const canonicalUrl = canonicalSourceUrl_(url);
+    if (!canonicalUrl || completed[canonicalUrl] || pendingMap[canonicalUrl]) return;
+    pendingMap[canonicalUrl] = true;
+    pendingUrls.push(canonicalUrl);
+  });
+
+  const historicalUrls = [];
+  Object.keys(currentCategories).forEach(function (label) {
+    const currentUrls = currentCategories[label];
+    const previousSet = {};
+    (previousCategories[label] || []).forEach(function (url) {
+      const canonicalUrl = canonicalSourceUrl_(url);
+      if (canonicalUrl) previousSet[canonicalUrl] = true;
+    });
+
+    let anchorIndex = -1;
+    for (let i = 0; i < currentUrls.length; i++) {
+      if (previousSet[currentUrls[i]] && !pendingMap[currentUrls[i]]) {
+        anchorIndex = i;
+        break;
+      }
+    }
+
+    const newlyDetected = [];
+    currentUrls.forEach(function (url, index) {
+      if (completed[url] || pendingMap[url]) return;
+      if (anchorIndex >= 0 && index < anchorIndex) newlyDetected.push(url);
+      else historicalUrls.push(url);
+    });
+
+    // Feed order is latest-first; queue a same-run prefix oldest-first so a
+    // multi-item burst is drafted chronologically without reading from the tail.
+    newlyDetected.reverse().forEach(function (url) {
+      if (pendingMap[url]) return;
+      pendingMap[url] = true;
+      pendingUrls.push(url);
+    });
+  });
+
+  return {
+    pendingUrls: pendingUrls,
+    historicalUrls: unique_(historicalUrls),
+    readyItems: pendingUrls.map(function (url) { return itemByUrl[url]; }).filter(Boolean)
+  };
+}
+
+function loadDiscoveryState_() {
+  return loadJsonChunks_(RV.DISCOVERY_STATE_PREFIX, null);
+}
+
+function saveDiscoveryState_(state) {
+  saveJsonChunks_(RV.DISCOVERY_STATE_PREFIX, state || {});
 }
 
 function loadSeen_() {
