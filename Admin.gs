@@ -4,7 +4,8 @@
  * Script Property required before setup:
  *   RV_ADMIN_PASSWORD = a strong password used only for this admin panel
  *
- * Run setupLabelHistorySystem() once, then deploy as a Web App:
+ * For a new installation only, run createRojgarAdminDatabaseExplicitly_()
+ * once, then run setupLabelHistorySystem() and deploy as a Web App:
  *   Execute as: Me
  *   Who has access: Anyone
  * Public requests can only read non-sensitive display data. Every write action
@@ -44,6 +45,105 @@ const RVH_DEFAULT_BOXES = [
   ['breaking', 'Breaking Updates', 'Breaking', true, 15, 150]
 ];
 
+/**
+ * Developer-only, explicit creation path for a genuinely new installation.
+ * The trailing underscore keeps this mutation unavailable to google.script.run.
+ * Never replaces an existing configured database, even when that database is
+ * currently inaccessible.
+ */
+function createRojgarAdminDatabaseExplicitly_() {
+  const props = PropertiesService.getScriptProperties();
+  const saved = String(props.getProperty(RVH.DB_KEY) || '').trim();
+  if (saved) {
+    throw new Error(
+      'Admin database is already configured as ID "' + saved + '". ' +
+      'No database was created and the property was not changed. Recover or inspect the configured database first.'
+    );
+  }
+
+  const ss = SpreadsheetApp.create('Rojgar Vigyapan Admin Database');
+  try {
+    rvhEnsureSheet_(ss, RVH.POSTS, RVH_POST_HEADERS);
+    rvhEnsureSheet_(ss, RVH.HISTORY, RVH_HISTORY_HEADERS);
+    const boxes = rvhEnsureSheet_(ss, RVH.BOXES, RVH_BOX_HEADERS);
+    boxes.getRange(2, 1, RVH_DEFAULT_BOXES.length, RVH_BOX_HEADERS.length).setValues(RVH_DEFAULT_BOXES);
+  } catch (error) {
+    throw new Error(
+      'A new spreadsheet was created, but initialization failed. ' +
+      'The Script Property was not changed. New spreadsheet ID: "' + ss.getId() + '". ' +
+      'Original error: ' + String(error && error.message || error)
+    );
+  }
+
+  props.setProperty(RVH.DB_KEY, ss.getId());
+  const result = {
+    created: true,
+    databaseId: ss.getId(),
+    spreadsheetTitle: ss.getName(),
+    spreadsheetUrl: ss.getUrl(),
+    defaultBoxesRestored: RVH_DEFAULT_BOXES.length
+  };
+  Logger.log('Explicit Admin database creation result: %s', JSON.stringify(result));
+  return result;
+}
+
+/**
+ * Developer-only recovery action. It restores defaults only when Boxes has no
+ * data rows, and never reads or writes Posts or Label History.
+ */
+function restoreDefaultRojgarBoxesSafely_() {
+  const ss = rvhGetDatabase_();
+  const existingSheet = ss.getSheetByName(RVH.BOXES);
+  // Be conservative: a formula-bearing row can display an empty value but is
+  // still occupied and must block restoration.
+  const existingRows = existingSheet ? Math.max(0, existingSheet.getLastRow() - 1) : 0;
+  if (existingRows > 0) {
+    throw new Error(
+      'Boxes already contains ' + existingRows + ' data row(s). ' +
+      'Default restore refused; no data was changed.'
+    );
+  }
+
+  const boxes = rvhEnsureSheet_(ss, RVH.BOXES, RVH_BOX_HEADERS);
+  boxes.getRange(2, 1, RVH_DEFAULT_BOXES.length, RVH_BOX_HEADERS.length).setValues(RVH_DEFAULT_BOXES);
+  CacheService.getScriptCache().remove('RVH_PUBLIC_BOOTSTRAP');
+  const result = {
+    restored: true,
+    databaseId: ss.getId(),
+    restoredRowCount: RVH_DEFAULT_BOXES.length,
+    restoredRows: rvhDefaultBoxObjects_()
+  };
+  Logger.log('Safe default Boxes restore result: %s', JSON.stringify(result));
+  return result;
+}
+
+/** Read-only developer inspection. This function never creates sheets. */
+function inspectRojgarAdminDatabaseState_() {
+  const props = PropertiesService.getScriptProperties();
+  const configuredId = String(props.getProperty(RVH.DB_KEY) || '').trim();
+  const ss = rvhGetDatabase_();
+  const posts = ss.getSheetByName(RVH.POSTS);
+  const history = ss.getSheetByName(RVH.HISTORY);
+  const boxes = ss.getSheetByName(RVH.BOXES);
+  const boxRows = rvhSheetDataRowCount_(boxes);
+  const boxesLastRow = boxes ? boxes.getLastRow() : 0;
+  const result = {
+    configuredDatabaseId: configuredId,
+    spreadsheetTitle: ss.getName(),
+    spreadsheetUrl: ss.getUrl(),
+    postsRowCount: rvhSheetDataRowCount_(posts),
+    labelHistoryRowCount: rvhSheetDataRowCount_(history),
+    boxesRowCount: boxRows,
+    boxesSheetExists: !!boxes,
+    boxesEmpty: !!boxes && boxesLastRow === 0,
+    boxesHeaderOnly: !!boxes && boxesLastRow === 1,
+    defaultRestoreSafe: !boxes || boxesLastRow <= 1,
+    defaultRowsIfRestored: rvhDefaultBoxObjects_()
+  };
+  Logger.log('Admin database inspection: %s', JSON.stringify(result));
+  return result;
+}
+
 function setupLabelHistorySystem() {
   const password = String(PropertiesService.getScriptProperties().getProperty(RVH.ADMIN_PASSWORD_KEY) || '').trim();
   if (password.length < 10) {
@@ -70,6 +170,8 @@ function syncLabelHistory() {
   if (!lock.tryLock(20000)) return;
   try {
     const ss = rvhGetDatabase_();
+    // Sync is deliberately scoped to Posts and Label History. It must never
+    // open, initialize, clear or rewrite the Boxes sheet.
     const postSheet = rvhEnsureSheet_(ss, RVH.POSTS, RVH_POST_HEADERS);
     const historySheet = rvhEnsureSheet_(ss, RVH.HISTORY, RVH_HISTORY_HEADERS);
     const existingPosts = rvhRowsAsObjects_(postSheet);
@@ -452,13 +554,40 @@ function rvhBloggerConfig_() {
 
 function rvhGetDatabase_() {
   const props = PropertiesService.getScriptProperties();
-  const saved = props.getProperty(RVH.DB_KEY);
-  if (saved) {
-    try { return SpreadsheetApp.openById(saved); } catch (error) {}
+  const saved = String(props.getProperty(RVH.DB_KEY) || '').trim();
+  if (!saved) {
+    throw new Error(
+      'Admin database is not configured. Set Script Property ' + RVH.DB_KEY +
+      ' to the recovered spreadsheet ID, or run createRojgarAdminDatabaseExplicitly_() only for a genuinely new installation.'
+    );
   }
-  const ss = SpreadsheetApp.create('Rojgar Vigyapan Admin Database');
-  props.setProperty(RVH.DB_KEY, ss.getId());
-  return ss;
+  try {
+    return SpreadsheetApp.openById(saved);
+  } catch (error) {
+    throw new Error(
+      'Admin database with saved ID "' + saved + '" could not be opened. ' +
+      'No replacement database was created and ' + RVH.DB_KEY + ' was not changed. ' +
+      'Restore spreadsheet access or recover the correct database ID. Original error: ' +
+      String(error && error.message || error)
+    );
+  }
+}
+
+function rvhSheetDataRowCount_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return 0;
+  const rowCount = sheet.getLastRow() - 1;
+  const columnCount = Math.max(1, sheet.getLastColumn());
+  return sheet.getRange(2, 1, rowCount, columnCount).getValues().filter(function(row) {
+    return row.some(function(value) { return value !== ''; });
+  }).length;
+}
+
+function rvhDefaultBoxObjects_() {
+  return RVH_DEFAULT_BOXES.map(function(row) {
+    const object = {};
+    RVH_BOX_HEADERS.forEach(function(header, index) { object[header] = row[index]; });
+    return object;
+  });
 }
 
 function rvhEnsureSheet_(ss, name, headers) {
