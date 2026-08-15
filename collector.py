@@ -35,7 +35,9 @@ HEADERS = {
 
 BLOCKED_SEGMENTS = {
     "latestjob", "result", "admitcard", "answerkey", "syllabus", "admission",
-    "contact", "privacy", "disclaimer", "about", "search", "feed", "category", "tag"
+    "contact", "privacy", "disclaimer", "about", "search", "feed", "category", "tag",
+    "author", "page", "paged", "archive", "archives", "comments", "trackback",
+    "sitemap", "robots", "cdn-cgi"
 }
 STATIC_EXT = re.compile(r"\.(?:jpg|jpeg|png|gif|webp|svg|css|js|xml|txt|pdf|zip|rar)$", re.I)
 URL_RE = re.compile(r"https?://(?:www\.)?sarkariresult\.com/[^\s<>()\]\[\"']+", re.I)
@@ -58,6 +60,7 @@ NAVIGATION_LABELS = {
     "home", "homepage", "about us", "contact us", "terms and conditions",
     "terms & conditions", "privacy policy", "disclaimer", "join us", "follow",
     "whatsapp", "telegram", "instagram", "youtube", "threads", "facebook",
+    "twitter", "x", "linkedin",
     "category", "find more latest updates", "up scholarship", "up-scholarship",
     "bpsc", "upsssc", "ibps", "upsc", "air force", "navy", "rpsc",
     "delhi dssb", "delhi dsssb", "hssc", "police", "railway", "railways",
@@ -66,13 +69,16 @@ NAVIGATION_LABELS = {
 SOCIAL_HOSTS = {
     "t.me", "telegram.me", "whatsapp.com", "www.whatsapp.com", "instagram.com",
     "www.instagram.com", "facebook.com", "www.facebook.com", "youtube.com",
-    "www.youtube.com", "threads.net", "www.threads.net", "play.google.com",
-    "apps.apple.com",
+    "www.youtube.com", "youtu.be", "www.youtu.be", "threads.net", "www.threads.net",
+    "twitter.com", "www.twitter.com", "x.com", "www.x.com", "linkedin.com",
+    "www.linkedin.com", "wa.me", "telegram.org", "www.telegram.org",
+    "play.google.com", "apps.apple.com",
 }
 SARKARIRESULT_NAV_PATHS = {
     "", "latestjob", "result", "admitcard", "answerkey", "syllabus", "admission",
     "contact", "privacy", "disclaimer", "about", "search", "category", "tag",
-    "tools", "tool", "android", "ios", "app",
+    "author", "page", "paged", "archive", "archives", "comments", "trackback",
+    "sitemap", "robots", "cdn-cgi", "tools", "tool", "android", "ios", "app",
 }
 
 
@@ -154,7 +160,11 @@ def title_near_url(text: str, url: str) -> str:
         before = text[max(0, idx - 500):idx]
         lines = [clean_title(x) for x in before.splitlines() if clean_title(x)]
         for line in reversed(lines):
-            if not re.match(r"^(URL Source|Published Time|Markdown Content|Title):", line, re.I):
+            if not re.match(
+                r"^(?:\[?\d+\]?\s*)?(?:URL Source|Published Time|Markdown Content|Title):",
+                line,
+                re.I,
+            ):
                 if len(line) >= 5:
                     return line[:300]
     return ""

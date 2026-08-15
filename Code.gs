@@ -592,7 +592,7 @@ function isCollectorApprovedLinkNoise_(label, url) {
   if (/join\s+sarkari\s+result\s+channel/i.test(value)) return true;
   if (/sarkari\s+result.*(?:telegram|whatsapp|channel|tools?|app)/i.test(value)) return true;
   if (/^sarkari result(?:Â®)?$/i.test(value)) return true;
-  if (/(?:^|\.)t\.me\/|whatsapp\.com\/(?:channel|invite)|instagram\.com|facebook\.com|youtube\.com|threads\.net|play\.google\.com|apps\.apple\.com/i.test(href)) return true;
+  if (/(?:^|[\/.])(?:t\.me|telegram\.me)\/|telegram\.org|whatsapp\.com\/(?:channel|invite)|(?:^|\/)wa\.me\/|instagram\.com|facebook\.com|youtube\.com|youtu\.be|threads\.net|twitter\.com|(?:^|\/)x\.com\/|linkedin\.com|play\.google\.com|apps\.apple\.com/i.test(href)) return true;
   if (/sarkariresult\.com\/(?:tools?|android|ios|app)(?:\/|$)/i.test(href)) return true;
   if (/^https?:\/\/(?:www\.)?sarkariresult\.com\/?(?:[?#].*)?$/i.test(href)) return true;
   if (/sarkariresult\.com\/(?:latestjob|result|admitcard|answerkey|syllabus|admission)\/?(?:[?#].*)?$/i.test(href)) return true;
@@ -897,7 +897,7 @@ function isSourceFooterNoise_(label, url) {
 
   // Source-owned social/app/channel destinations are promotional even when
   // their anchor text is generic (e.g. Telegram | WhatsApp / Click Here).
-  if (/(?:^|\.)t\.me\/|whatsapp\.com\/(?:channel|invite)|instagram\.com|facebook\.com|youtube\.com|threads\.net|play\.google\.com|apps\.apple\.com/i.test(href)) return true;
+  if (/(?:^|[\/.])(?:t\.me|telegram\.me)\/|telegram\.org|whatsapp\.com\/(?:channel|invite)|(?:^|\/)wa\.me\/|instagram\.com|facebook\.com|youtube\.com|youtu\.be|threads\.net|twitter\.com|(?:^|\/)x\.com\/|linkedin\.com|play\.google\.com|apps\.apple\.com/i.test(href)) return true;
 
   // Known generic SarkariResult tool/app pages are promotional.
   if (/sarkariresult\.com\/(?:tools?|android|ios|app)(?:\/|$)/i.test(href)) return true;
@@ -2194,7 +2194,8 @@ function isSarkariResultArticle_(url) {
   if (!/^https:\/\/(?:www\.)?sarkariresult\.com\//i.test(value)) return false;
 
   // Ignore category/navigation/system/static URLs.
-  if (/\/(latestjob|result|admitcard|answerkey|syllabus|admission|contact|privacy|disclaimer|about|search|feed|wp-|category|tag)(?:\/|$)/i.test(value)) return false;
+  if (/\/(latestjob|result|admitcard|answerkey|syllabus|admission|contact|privacy|disclaimer|about|search|feed|category|tag|author|page|paged|archive|archives|comments|trackback|sitemap|robots|cdn-cgi)(?:\/|$)/i.test(value)) return false;
+  if (/\/wp-[^/]*(?:\/|$)/i.test(value)) return false;
   if (/\.(?:jpg|jpeg|png|gif|webp|svg|css|js|xml|txt|pdf|zip|rar)(?:\/)?$/i.test(value)) return false;
 
   // Real Sarkari Result article URLs have at least two path segments, e.g.
